@@ -14,7 +14,7 @@ ImageView::ImageView(QWidget *parent):
     scene->setBackgroundBrush(QColor(120,120,120));
     setScene(scene);
 
-    welcome = new QGraphicsTextItem("Camera calibration:\n\n1.) load images\n2.) find cessboard corners\n3.) calibrate camera\n4.) save parameter");
+    welcome = new QGraphicsTextItem("Camera calibration:\n\n1.) load images\n2.) find chessboard corners\n3.) calibrate camera\n4.) save parameter");
     scene->addItem(welcome);
 }
 
