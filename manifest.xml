@@ -1,0 +1,12 @@
+<package>
+  <description brief="Qt Application for pinhole camera calibration using OpenCV as Back-End">
+  </description>
+  <author>Alexander Duda</author>
+  <license></license>
+  <url>http://</url>
+  <logo>http://</logo>
+  <depend package="base/cmake" />
+  <depend package="qt4" />
+  <depend package="opencv" />
+  <depend package="boost" />
+</package>
