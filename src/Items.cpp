@@ -92,6 +92,7 @@ void CameraParameterItem::save(const QString &path)const
     k.at<double>(1,1) = getParameter("fy");
     k.at<double>(0,2) = getParameter("cx");
     k.at<double>(1,2) = getParameter("cy");
+    k.at<double>(2,2) = 1.0;
     dist.at<double>(0) = getParameter("k1");
     dist.at<double>(1) = getParameter("k2");
     dist.at<double>(2) = getParameter("p1");
