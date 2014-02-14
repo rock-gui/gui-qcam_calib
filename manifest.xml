@@ -9,4 +9,5 @@
   <depend package="qt4" />
   <depend package="opencv" />
   <depend package="boost" />
+  <depend package="image_processing/cv_detectors" />
 </package>

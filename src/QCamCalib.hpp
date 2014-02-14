@@ -4,14 +4,17 @@
 #include <QtGui>
 #include <QFuture>
 #include <QFutureWatcher>
+#include <stdexcept>
 
 namespace qcam_calib
 {
     class CameraItem;
+    class CalibrationObj;
     class ImageItem;
     class ImageView;
+    class StructuredLightItem;
+    class StructuredLightImageItem;
 }
-
 
 /**
  * \brief Widget for calibrating pinhole cameras
@@ -48,6 +51,10 @@ public slots:
      */
     void removeCamera(int camera_id = -1);
 
+    void addLineStructuredLight(int id = -1);
+
+    void loadImages(QStringList &files, QList<QImage> &images);
+
     /**
      * \brief Opens a dialog to select images which are going to be loaded and added to the camera.
      *
@@ -58,7 +65,9 @@ public slots:
      * \param[in] camera_id The id of the camera.
      * \author Alexander.Duda@dfki.de
      */
-    void loadImages(int camera_id = -1);
+    void loadCameraImages(int camera_id = -1);
+
+    void loadStructuredLightImages(int id = -1);
 
     /**
      * \brief Adds an image to a camera
@@ -92,6 +101,8 @@ public slots:
      */
     void calibrateCamera(int camera_id = -1);
 
+    void calibrateStructuredLight(int id = -1);
+
     /**
      * \brief Finds chessboard corners in an image
      *
@@ -101,7 +112,10 @@ public slots:
      * \param[in] name The name of the image
      * \author Alexander.Duda@dfki.de
      */
-    void findChessBoard(int camera_id=-1,const QString &name=QString(""));
+    void findChessBoard(int camera_id=-1,const QString &name=QString(""),bool fastx = false);
+    void findChessBoardFastX(int camera_id=-1,const QString &name=QString(""));
+
+    void findLaserLine(int id=-1,const QString &name=QString(""));
 
 private slots:
     void contextMenuTreeView(const QPoint &point);
@@ -110,8 +124,65 @@ private slots:
     void removeCurrentItem();
 
 private:
-    qcam_calib::CameraItem *getCameraItem(int camera_id);
-    qcam_calib::ImageItem *getImageItem(int camera_id,const QString &name);
+    template<class T>
+        T *getItem(int id,bool raise)
+        {
+            T *item = NULL;
+            if(id < 0)
+            {
+                QTreeView *tree_view = findChild<QTreeView*>("treeView");
+                if(!tree_view)
+                    throw std::runtime_error("Cannot find treeView object");
+                QModelIndex index = tree_view->currentIndex();
+                if(index.isValid())
+                    item = dynamic_cast<T*>(tree_model->itemFromIndex(index));
+            }
+            else
+            {
+                for(int i=0;i<tree_model->rowCount();++i)
+                {
+                    item = dynamic_cast<T*>(tree_model->item(i,0));
+                    if(item && item->getId() == id)
+                        break;
+                    else
+                        item = NULL;
+                }
+            }
+            if(item == NULL && raise)
+                throw std::runtime_error("Internal error: cannot find item");
+            return item;
+        }
+    template<class T,class T2>
+        T *getImageItem(int id,const QString &name,bool raise)
+        {
+            T *item = NULL;
+            if(id < 0)
+            {
+                QTreeView *tree_view = findChild<QTreeView*>("treeView");
+                if(!tree_view)
+                    throw std::runtime_error("Cannot find treeView object");
+                QModelIndex index =tree_view->currentIndex();
+                if(index.isValid())
+                    item = dynamic_cast<T*>(tree_model->itemFromIndex(index));
+            }
+            else
+            {
+                for(int i=0;i<tree_model->rowCount()&&!item;++i)
+                {
+                    T2 *obj= dynamic_cast<T2*>(tree_model->item(i,0));
+                    if(obj)
+                        item = dynamic_cast<T*>(obj->getImageItem(name));
+                }
+            }
+            if(!item && raise)
+                throw std::runtime_error("Internal error: cannot find image item");
+            return item;
+        }
+
+    qcam_calib::CameraItem *getCameraItem(int camera_id,bool raise = true);
+    qcam_calib::StructuredLightItem *getStructuredLightItem(int id,bool raise=true);
+    qcam_calib::ImageItem *getImageItem(int camera_id,const QString &name,bool raise=true);
+    qcam_calib::StructuredLightImageItem *getStructuredLightImageItem(int id,const QString &name,bool raise=true);
 
 private:
     // file paths
@@ -122,6 +193,8 @@ private:
 
     // menues
     QMenu *camera_item_menu;
+    QMenu *structured_light_item_menu;
+    QMenu *structured_light_image_item_menu;
     QMenu *tree_view_menu;
     QMenu *image_item_menu;
 
@@ -132,9 +205,11 @@ private:
     QProgressDialog *progress_dialog_images;
     QProgressDialog *progress_dialog_chessboard;
     QProgressDialog *progress_dialog_calibrate;
+    QProgressDialog *progress_dialog_laser_line;
     QFutureWatcher<QImage> *future_watcher_images;
     QFutureWatcher<QVector<QPointF> > *future_watcher_chessboard;
     QFutureWatcher<void> *future_watcher_calibrate;
+    QFutureWatcher<QVector<QPointF> > *future_watcher_laser_line;
 };
 
 #endif /* QCAMCALIB_HPP */
