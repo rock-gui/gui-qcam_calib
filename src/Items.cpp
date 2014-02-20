@@ -182,8 +182,8 @@ void CameraItem::calibrate(int cols,int rows,float dx,float dy)
     std::vector<cv::Mat> rvecs;
     std::vector<cv::Mat> tvecs;
     double error = cv::calibrateCamera(object_points,image_points,
-                                       image_size,k,dist,rvecs,tvecs,0,
-                                       cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 50, DBL_EPSILON));
+                                       image_size,k,dist,rvecs,tvecs,0);
+                                       //cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 50, DBL_EPSILON));
 
     //store parameters
     camera_parameter->setParameter("fx",k.at<double>(0,0));
