@@ -315,6 +315,7 @@ void QCamCalib::calibrateStructuredLight(int id)
     progress_dialog_calibrate->setRange(0,0);
     if(QDialog::Accepted != progress_dialog_calibrate->exec() && future_watcher_calibrate->isCanceled())
         return;
+    future_watcher_calibrate->waitForFinished();
 }
 
 
@@ -341,6 +342,7 @@ void QCamCalib::calibrateCamera(int camera_id)
     progress_dialog_calibrate->setRange(0,0);
     if(QDialog::Accepted != progress_dialog_calibrate->exec() && future_watcher_calibrate->isCanceled())
         return;
+    future_watcher_calibrate->waitForFinished();
 }
 
 CameraItem *QCamCalib::getCameraItem(int camera_id,bool raise)
@@ -407,6 +409,7 @@ void QCamCalib::findLaserLine(int id,const QString &name)
     future_watcher_chessboard->setFuture(chessboards);
     if(QDialog::Accepted != progress_dialog_chessboard->exec() && future_watcher_chessboard->isCanceled())
         return;
+    future_watcher_chessboard->waitForFinished();
 
     // set chessboards and prepare laser line serach
     QVector<StructuredLightImageItem::Data> data;
@@ -444,6 +447,7 @@ void QCamCalib::findLaserLine(int id,const QString &name)
     future_watcher_laser_line->setFuture(laser_lines);
     if(QDialog::Accepted != progress_dialog_laser_line->exec() && future_watcher_laser_line->isCanceled())
         return;
+    future_watcher_laser_line->waitForFinished();
 
     // set laser line
     count = data.size();

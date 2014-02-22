@@ -453,7 +453,8 @@ QVector<QPointF> StructuredLightImageItem::findLaserLine(const Data &data)
 
     //filter out points which are to far away from a polynomial
     //this is possible because the pattern lies on a flat surface
-    cv::Mat dat,x,y,coeff;
+    cv::Mat dat,x,y;
+    cv::Mat coeff(3,1,CV_64FC1);
     for(int i=0;i<4 && points.size() >= 30 ;++i)
     {
         dat = cv::Mat(points).reshape(1,points.size());
