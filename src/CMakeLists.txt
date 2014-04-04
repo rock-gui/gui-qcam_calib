@@ -23,7 +23,7 @@ rock_library(QCamCalib
     SOURCES ${SRCS} ${QtApp_RCC_SRCS}
     HEADERS ${HDRS}
     MOC ${MOC_HDRS}
-    DEPS_PKGCONFIG QtCore QtGui opencv cv_detectors
+    DEPS_PKGCONFIG QtCore QtGui opencv cv_detectors opensfm
     UI ${UI_FILES}
 )
 #QT4_ADD_RESOURCES(QtApp_RCC_SRCS ${QtApp_RCCS})

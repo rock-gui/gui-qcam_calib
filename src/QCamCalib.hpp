@@ -89,7 +89,7 @@ public slots:
      * \param[in] camera_id The id of the camera.
      * \author Alexander.Duda@dfki.de
      */
-    void saveCameraParameter(int camera_id = -1);
+    void saveCalibParameter(int obj_id = -1);
 
     /**
      * \brief Calibrates a camera

@@ -10,4 +10,5 @@
   <depend package="opencv" />
   <depend package="boost" />
   <depend package="image_processing/cv_detectors" />
+  <depend package="image_processing/opensfm" />
 </package>

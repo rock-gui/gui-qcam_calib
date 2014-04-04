@@ -9,6 +9,9 @@
 #include <QMutex>
 #include <cv_detectors/chessboard.hpp>
 #include <cv_detectors/laser_line.hpp>
+#include <opensfm/structured_light/laser_line.hpp>
+#include <opensfm/opensfm.hpp>
+
 #include <limits>
 #include <assert.h>
 
@@ -51,6 +54,9 @@ CameraParameterItem::CameraParameterItem(const QString &string):
     setParameter("projection error",0);
     setParameter("pixel error",0);
 };
+
+CameraParameterItem::~CameraParameterItem()
+{}
 
 void CameraParameterItem::setParameter(const QString &name,double val)
 {
@@ -128,34 +134,47 @@ StructuredLightParameterItem::StructuredLightParameterItem(const QString &string
     setParameter("cam_projection error",0);
     setParameter("cam_pixel error",0);
 
-    setParameter("proj_alpha",0);
-    setParameter("proj_beta",0);
-    setParameter("proj_dist",0);
+    setParameter("proj_r1",0);
+    setParameter("proj_r2",0);
+    setParameter("proj_r3",0);
+    setParameter("proj_t1",0);
+    setParameter("proj_t2",0);
+    setParameter("proj_t3",0);
+
     setParameter("proj_error",0);
 };
+
+StructuredLightParameterItem::~StructuredLightParameterItem()
+{}
 
 void StructuredLightParameterItem::save(const QString &path)const
 {
     cv::Mat k = cv::Mat::zeros(3,3,CV_64FC1);
     cv::Mat dist(4,1,CV_64FC1);
-    k.at<double>(0,0) = getParameter("fx");
-    k.at<double>(1,1) = getParameter("fy");
-    k.at<double>(0,2) = getParameter("cx");
-    k.at<double>(1,2) = getParameter("cy");
+    k.at<double>(0,0) = getParameter("cam_fx");
+    k.at<double>(1,1) = getParameter("cam_fy");
+    k.at<double>(0,2) = getParameter("cam_cx");
+    k.at<double>(1,2) = getParameter("cam_cy");
     k.at<double>(2,2) = 1.0;
-    dist.at<double>(0) = getParameter("k1");
-    dist.at<double>(1) = getParameter("k2");
-    dist.at<double>(2) = getParameter("p1");
-    dist.at<double>(3) = getParameter("p2");
+    dist.at<double>(0) = getParameter("cam_k1");
+    dist.at<double>(1) = getParameter("cam_k2");
+    dist.at<double>(2) = getParameter("cam_p1");
+    dist.at<double>(3) = getParameter("cam_p2");
+
+    cv::Mat rvec(3,1,CV_64FC1);
+    cv::Mat tvec(3,1,CV_64FC1);
+    rvec.at<double>(0) = getParameter("proj_r1");
+    rvec.at<double>(1) = getParameter("proj_r2");
+    rvec.at<double>(2) = getParameter("proj_r3");
+    tvec.at<double>(0) = getParameter("proj_t1");
+    tvec.at<double>(1) = getParameter("proj_t2");
+    tvec.at<double>(2) = getParameter("proj_t3");
 
     cv::FileStorage fs(path.toStdString(), cv::FileStorage::WRITE);
     time_t rawtime; time(&rawtime);
     fs << "calibrationDate" << asctime(localtime(&rawtime));
-    fs << "cameraMatrix" << k << "distCoeffs" << dist;
+    fs << "cameraMatrix" << k << "distCoeffs" << dist << "projT" << tvec << "projR" << rvec;
     fs.release();
-
-
-
 }
 
 CalibrationObj::CalibrationObj(int id, const QString &string):
@@ -440,12 +459,12 @@ QVector<QPointF> StructuredLightImageItem::findLaserLine(const Data &data)
     cv::fillConvexPoly(mask,(cv::Point*)&pts,4,cv::Scalar(255,255,255,255));
 
     cv_detectors::LaserLine::Parameters para;
-    para.laser_width_top = 1;
-    para.laser_width_bottom = 3;
+    para.laser_width_top = 3;
+    para.laser_width_bottom = 4;
     para.min_segment_length = 5;
     para.max_gap_length = 5;
     para.min_seperation = 100;
-    para.min_snr = 20;
+    para.min_snr = 10;
     cv_detectors::LaserLine detector(para);
     detector.config(gray.cols,gray.rows);
     detector.detect(gray,key_points,mask);
@@ -552,12 +571,7 @@ StructuredLightImageItem *StructuredLightItem::addImage(const QString &name,cons
 
 bool StructuredLightItem::isCalibrated()const
 {
-    return false;
-}
-
-void StructuredLightItem::saveParameter(const QString &path)const
-{
-
+    return (parameter->getParameter("proj_r1") != 0 && parameter->getParameter("proj_r1") != 0);
 }
 
 int StructuredLightItem::countLaserLines()const
@@ -640,21 +654,21 @@ void StructuredLightItem::calibrate(int cols,int rows,float dx,float dy)
     parameter->setParameter("cam_pixel error",sqrt(error/points3f.size()));
 
     //collect image points and calc their 3d coordinate
-    std::vector<std::vector<cv::Point3f> >laser_points;
+    std::vector<cv::Point3f> laser_points;
     for(int row=0;row < (int)items.size(); ++row)
     {
         StructuredLightImageItem *item = items[row];
         cv::Mat r = rvecs[row];
-        cv::Mat t = tvecs[row];
+        cv::Mat t = tvecs[row]*0.001;  //convert into meter
         cv::Rodrigues(r,r);
         assert(r.type() == CV_64FC1);
         assert(t.type() == CV_64FC1);
-        QVector3D plane(t.at<double>(0),t.at<double>(1),t.at<double>(2));
-        QVector3D normal(r.at<double>(0,2),r.at<double>(1,2),r.at<double>(2,2));
+        QVector3D plane(t.at<double>(0),t.at<double>(1),t.at<double>(2));        //offset
+        QVector3D normal(r.at<double>(0,2),r.at<double>(1,2),r.at<double>(2,2)); //normal R*[0;0;1]
         item->setChessboardPlane(plane,normal);
 
-        QVector3D v1(r.at<double>(0,0),r.at<double>(1,0),r.at<double>(2,0));
-        QVector3D v2(r.at<double>(0,1),r.at<double>(1,1),r.at<double>(2,1));
+        QVector3D v1(r.at<double>(0,0),r.at<double>(1,0),r.at<double>(2,0)); // plane vector R*[1;0;0]
+        QVector3D v2(r.at<double>(0,1),r.at<double>(1,1),r.at<double>(2,1)); // plane vector R*[0;1;0]
 
         cv::Mat x(3,3,CV_64FC1);
         cv::Mat y(3,1,CV_64FC1);
@@ -689,7 +703,7 @@ void StructuredLightItem::calibrate(int cols,int rows,float dx,float dy)
             // calc intersection between chessboard plane and camera ray
             v3.at<double>(0) = out.at<double>(0);
             v3.at<double>(1) = out.at<double>(1);
-            v3.at<double>(2) = 1.0;
+            v3.at<double>(2) = 1.0;  // focal length is one for unified camera
             v3 = v3/cv::norm(v3);
 
             x.at<double>(0,2) = -v3.at<double>(0);
@@ -698,88 +712,19 @@ void StructuredLightItem::calibrate(int cols,int rows,float dx,float dy)
 
             cv::solve(x,y,dst);
             QVector3D result = v1*dst.at<double>(0)+v2*dst.at<double>(1)+plane;
-            points3d.push_back(cv::Point3f(result.x(),result.y(),result.z()));
-        }
-        if(points3d.size() >= 2)
-            laser_points.push_back(points3d);
-    }
-
-    // check that we have enough views
-    if(laser_points.size() < 2)
-        throw std::runtime_error("not enough 3d point sets");
-
-    // TODO use proper RANSAC
-    cv::Mat best_dst;
-    float distance = 0;
-    float alpha = 0;
-    float beta = 0;
-    float best_error = std::numeric_limits<float>::max();
-    for(int i=0;i<500;++i)
-    {
-        int a = cv::theRNG().uniform(0, laser_points.size()-1);
-        int b = cv::theRNG().uniform(0, laser_points.size()-1);
-        if(a == b)
-            continue;
-
-        int c = cv::theRNG().uniform(0, laser_points[a].size()-1);
-        int d = cv::theRNG().uniform(0, laser_points[a].size()-1);
-        if(c == d)
-            continue;
-
-        int e = cv::theRNG().uniform(0, laser_points[b].size()-1);
-
-        // calc plane from 3 points
-        cv::Point3f p1 = laser_points[a][c];
-        cv::Point3f p2 = laser_points[a][d];
-        cv::Point3f p3 = laser_points[b][e];
-
-        cv::Mat x(3,3,CV_64FC1);
-        cv::Mat y = -cv::Mat::ones(3,1,CV_64FC1);
-        cv::Mat dst;
-        x.at<double>(0,0) = p1.x;
-        x.at<double>(0,1) = p1.y;
-        x.at<double>(0,2) = p1.z;
-        x.at<double>(1,0) = p2.x;
-        x.at<double>(1,1) = p2.y;
-        x.at<double>(1,2) = p2.z;
-        x.at<double>(2,0) = p3.x;
-        x.at<double>(2,1) = p3.y;
-        x.at<double>(2,2) = p3.z;
-        cv::solve(x,y,dst);
-
-        //norm result to get Hessian normal form
-        float n = 1.0/cv::norm(dst);
-        dst = dst*n;
-
-        // Todo use matrices here !
-        //calc error for all 3D Points
-        float error = 0;
-        int count = 0;
-        std::vector<std::vector<cv::Point3f> >::const_iterator iter = laser_points.begin();
-        for(;iter != laser_points.end();++iter)
-        {
-            std::vector<cv::Point3f>::const_iterator iter2 = iter->begin();
-            for(;iter2 != iter->end();++iter2)
-            {
-                float err = pow(dst.at<double>(0)*iter2->x+dst.at<double>(1)*iter2->y+dst.at<double>(2)*iter2->z+n,2);
-            //    if(err < 400)
-                {
-                    count++;
-                    error += err;
-                }
-            }
-        }
-        if(error < best_error)
-        {
-            distance = -n/dst.at<double>(1);
-            alpha = atan(dst.at<double>(2)/dst.at<double>(1))/M_PI*180;
-            beta = atan(-dst.at<double>(0)/dst.at<double>(1))/M_PI*180;
-            best_error = error;
-            best_dst = dst;
+            laser_points.push_back(cv::Point3f(result.x(),result.y(),result.z()));
         }
     }
-    parameter->setParameter("proj_dist",distance*0.001);
-    parameter->setParameter("proj_alpha",alpha);
-    parameter->setParameter("proj_beta",beta);
-    parameter->setParameter("proj_error",best_error);
+
+    cv::Mat coeffs,rvec,tvec;
+
+    opensfm::RANSAC::Param param(1e-3,1e-2,200,1000);
+    error = opensfm::structured_light::calibrateLaserLine(laser_points,coeffs,rvec,tvec,param);
+    parameter->setParameter("proj_t1",tvec.at<double>(0));
+    parameter->setParameter("proj_t2",tvec.at<double>(1));
+    parameter->setParameter("proj_t3",tvec.at<double>(2));
+    parameter->setParameter("proj_r1",rvec.at<double>(0));
+    parameter->setParameter("proj_r2",rvec.at<double>(1));
+    parameter->setParameter("proj_r3",rvec.at<double>(2));
+    parameter->setParameter("proj_error",error);
 }

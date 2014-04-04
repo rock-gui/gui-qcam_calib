@@ -20,16 +20,18 @@ namespace qcam_calib
     {
         public:
             CameraParameterItem(const QString &string);
-            void setParameter(const QString &name,double val=0);
-            void save(const QString &path)const;
-            double getParameter(const QString &name)const;
+            virtual ~CameraParameterItem();
+            virtual void setParameter(const QString &name,double val=0);
+            virtual void save(const QString &path)const;
+            virtual double getParameter(const QString &name)const;
     };
 
     class StructuredLightParameterItem: public CameraParameterItem
     {
         public:
             StructuredLightParameterItem(const QString &string);
-            void save(const QString &path)const;
+            virtual ~StructuredLightParameterItem();
+            virtual void save(const QString &path)const;
     };
 
     class ImageItem : public QCamCalibItem
@@ -88,6 +90,8 @@ namespace qcam_calib
     {
         public:
             CalibrationObj(int id, const QString &name);
+            virtual ~CalibrationObj(){};
+
             int getId();
             ImageItem* addImage(const QString &name,const QImage &image);
             ImageItem* getImageItem(const QString &name);
@@ -107,33 +111,30 @@ namespace qcam_calib
     {
         public:
             CameraItem(int id, const QString &string);
+            virtual ~CameraItem(){};
 
             virtual bool isCalibrated()const;
             virtual void saveParameter(const QString &path)const;
+            virtual void calibrate(int cols,int rows,float dx,float dy);
 
-            void calibrate(int cols,int rows,float dx,float dy);
             int countChessboards()const;
         protected:
             CameraParameterItem* parameter;
     };
 
-
     class StructuredLightItem: public CameraItem
     {
         public:
             StructuredLightItem(int id, const QString &string);
+            virtual ~StructuredLightItem(){};
+
             StructuredLightImageItem* addImage(const QString &name,const QImage &image);
             StructuredLightImageItem* getImageItem(int id);
             StructuredLightImageItem* getImageItem(const QString &name);
-
             int countLaserLines()const;
-            void calibrate(int cols,int rows,float dx,float dy);
 
+            virtual void calibrate(int cols,int rows,float dx,float dy);
             virtual bool isCalibrated()const;
-            virtual void saveParameter(const QString &path)const;
-        protected:
-            CameraItem* camera_item;
     };
-
 }
 #endif

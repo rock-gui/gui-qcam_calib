@@ -67,7 +67,7 @@ QCamCalib::QCamCalib(QWidget *parent) :
     camera_item_menu->addSeparator();
 
     act = new QAction("save parameter",this);
-    connect(act,SIGNAL(triggered()),this,SLOT(saveCameraParameter()));
+    connect(act,SIGNAL(triggered()),this,SLOT(saveCalibParameter()));
     camera_item_menu->addAction(act);
     camera_item_menu->addSeparator();
 
@@ -85,6 +85,10 @@ QCamCalib::QCamCalib(QWidget *parent) :
     structured_light_item_menu->addAction(act_laser);
     act = new QAction("calibrate",this);
     connect(act,SIGNAL(triggered()),this,SLOT(calibrateStructuredLight()));
+    structured_light_item_menu->addAction(act);
+    structured_light_item_menu->addSeparator();
+    act = new QAction("save parameter",this);
+    connect(act,SIGNAL(triggered()),this,SLOT(saveCalibParameter()));
     structured_light_item_menu->addAction(act);
 
     // structured_light_image_menu
@@ -207,18 +211,21 @@ void QCamCalib::addLineStructuredLight(int id)
     }
 }
 
-void QCamCalib::saveCameraParameter(int camera_id)
+void QCamCalib::saveCalibParameter(int obj_id)
 {
-    CameraItem *item = getCameraItem(camera_id);
-    if(!item->isCalibrated())
+    CalibrationObj *obj = getItem<CalibrationObj>(obj_id,true);
+    if(!obj->isCalibrated())
     {
-        calibrateCamera(camera_id);
-        if(!item->isCalibrated())
+        if(dynamic_cast<CameraItem*>(obj))
+            calibrateCamera(obj_id);
+        else if(dynamic_cast<StructuredLightItem*>(obj))
+            calibrateStructuredLight(obj_id);
+        if(!obj->isCalibrated())
             return;
     }
     QString path = QFileDialog::getSaveFileName(this, "Save Parameter",current_load_path, "config (*.yml *.xml)");
     if(path.size() != 0)
-        item->saveParameter(path);
+        obj->saveParameter(path);
 }
 
 void QCamCalib::removeCamera(int camera_id)
