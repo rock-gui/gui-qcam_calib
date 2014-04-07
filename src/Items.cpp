@@ -140,6 +140,7 @@ StructuredLightParameterItem::StructuredLightParameterItem(const QString &string
     setParameter("proj_t1",0);
     setParameter("proj_t2",0);
     setParameter("proj_t3",0);
+    setParameter("proj_dist",0);
 
     setParameter("proj_error",0);
 };
@@ -163,17 +164,20 @@ void StructuredLightParameterItem::save(const QString &path)const
 
     cv::Mat rvec(3,1,CV_64FC1);
     cv::Mat tvec(3,1,CV_64FC1);
+    cv::Mat dist2(1,1,CV_64FC1);
     rvec.at<double>(0) = getParameter("proj_r1");
     rvec.at<double>(1) = getParameter("proj_r2");
     rvec.at<double>(2) = getParameter("proj_r3");
     tvec.at<double>(0) = getParameter("proj_t1");
     tvec.at<double>(1) = getParameter("proj_t2");
     tvec.at<double>(2) = getParameter("proj_t3");
+    dist2.at<double>(0) = getParameter("proj_dist");
 
     cv::FileStorage fs(path.toStdString(), cv::FileStorage::WRITE);
     time_t rawtime; time(&rawtime);
     fs << "calibrationDate" << asctime(localtime(&rawtime));
     fs << "cameraMatrix" << k << "distCoeffs" << dist << "projT" << tvec << "projR" << rvec;
+    fs << "projDistCoeffs" << dist2;
     fs.release();
 }
 
@@ -726,5 +730,6 @@ void StructuredLightItem::calibrate(int cols,int rows,float dx,float dy)
     parameter->setParameter("proj_r1",rvec.at<double>(0));
     parameter->setParameter("proj_r2",rvec.at<double>(1));
     parameter->setParameter("proj_r3",rvec.at<double>(2));
+    parameter->setParameter("proj_dist",coeffs.at<double>(0));
     parameter->setParameter("proj_error",error);
 }
