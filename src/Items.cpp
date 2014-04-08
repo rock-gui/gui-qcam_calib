@@ -9,7 +9,7 @@
 #include <QMutex>
 #include <cv_detectors/chessboard.hpp>
 #include <cv_detectors/laser_line.hpp>
-#include <opensfm/structured_light/laser_line.hpp>
+#include <opensfm/structured_light/line_scanner.hpp>
 #include <opensfm/opensfm.hpp>
 
 #include <limits>
@@ -723,7 +723,7 @@ void StructuredLightItem::calibrate(int cols,int rows,float dx,float dy)
     cv::Mat coeffs,rvec,tvec;
 
     opensfm::RANSAC::Param param(1e-3,1e-2,200,1000);
-    error = opensfm::structured_light::calibrateLaserLine(laser_points,coeffs,rvec,tvec,param);
+    error = opensfm::structured_light::LineScanner::calibrateLaserLine(laser_points,coeffs,rvec,tvec,param);
     parameter->setParameter("proj_t1",tvec.at<double>(0));
     parameter->setParameter("proj_t2",tvec.at<double>(1));
     parameter->setParameter("proj_t3",tvec.at<double>(2));
