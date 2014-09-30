@@ -8,7 +8,6 @@
 #include <stdexcept>
 #include <QMutex>
 #include <cv_detectors/chessboard.hpp>
-#include <cv_detectors/laser_line.hpp>
 #include <opensfm/structured_light/line_scanner.hpp>
 #include <opensfm/opensfm.hpp>
 
@@ -462,14 +461,14 @@ QVector<QPointF> StructuredLightImageItem::findLaserLine(const Data &data)
         pts[i] = cv::Point(data.rect[i].x(),data.rect[i].y());
     cv::fillConvexPoly(mask,(cv::Point*)&pts,4,cv::Scalar(255,255,255,255));
 
-    cv_detectors::LaserLine::Parameters para;
+    opensfm::structured_light::LaserLineDetector::Parameters para;
     para.laser_width_top = 3;
     para.laser_width_bottom = 4;
     para.min_segment_length = 5;
     para.max_gap_length = 5;
     para.min_seperation = 100;
     para.min_snr = 10;
-    cv_detectors::LaserLine detector(para);
+    opensfm::structured_light::LaserLineDetector detector(para);
     detector.config(gray.cols,gray.rows);
     detector.detect(gray,key_points,mask);
     cv::KeyPoint::convert(key_points,points);
