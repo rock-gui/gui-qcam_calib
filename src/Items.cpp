@@ -447,30 +447,31 @@ QVector<QPointF> StructuredLightImageItem::findLaserLine(const Data &data)
 {
     QImage img = data.image.convertToFormat(QImage::Format_RGB888);
     cv::Mat mat(img.height(), img.width(), CV_8UC3, img.bits(), img.bytesPerLine());
-    cv::Mat gray;
-    cv::cvtColor(mat,gray,cv::COLOR_RGB2GRAY);
 
     std::vector<cv::Point2f> points;
     std::vector<cv::KeyPoint> key_points;
 
     // generate mask
     // only points on the chessboard are from interest
-    cv::Mat mask = cv::Mat::zeros(gray.rows,gray.cols,CV_8UC1);
+    cv::Mat mask = cv::Mat::zeros(mat.rows,mat.cols,CV_8UC1);
     cv::Point pts[4];
     for(int i=0;i<4;++i)
         pts[i] = cv::Point(data.rect[i].x(),data.rect[i].y());
     cv::fillConvexPoly(mask,(cv::Point*)&pts,4,cv::Scalar(255,255,255,255));
 
     opensfm::structured_light::LaserLineDetector::Parameters para;
-    para.laser_width_top = 3;
-    para.laser_width_bottom = 4;
+    para.laser_width_top = 2;
+    para.laser_width_bottom = 1;
     para.min_segment_length = 5;
-    para.max_gap_length = 5;
-    para.min_seperation = 100;
-    para.min_snr = 10;
+    para.max_gap_length = 10;
+    para.min_seperation = 50;
+    para.min_snr = 2;
+    para.color = 0;
+    para.unique_solution = true;
+
     opensfm::structured_light::LaserLineDetector detector(para);
-    detector.config(gray.cols,gray.rows);
-    detector.detect(gray,key_points,mask);
+    detector.config(mat.cols,mat.rows);
+    detector.detect(mat,key_points,mask);
     cv::KeyPoint::convert(key_points,points);
 
     //filter out points which are to far away from a polynomial
