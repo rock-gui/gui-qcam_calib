@@ -2,7 +2,6 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <opencv2/contrib/contrib.hpp>
 
 #include <iostream>
 #include <stdexcept>
@@ -12,11 +11,50 @@
 #include <opensfm/opensfm.hpp>
 
 #include <limits>
+#include <vector>
 #include <assert.h>
 
 #include "Items.hpp"
 
 using namespace qcam_calib;
+using namespace cv;
+
+// This original code was written by
+//  Onkar Raut
+//  Graduate Student,
+//  University of North Carolina at Charlotte
+typedef double polyfit_type;
+void polyfit(const Mat& src_x, const Mat& src_y, Mat& dst, int order)
+{
+    const int wdepth = DataType<polyfit_type>::depth;
+    int npoints = src_x.checkVector(1);
+    int nypoints = src_y.checkVector(1);
+
+    CV_Assert(npoints == nypoints && npoints >= order+1);
+
+    Mat srcX = Mat_<polyfit_type>(src_x), srcY = Mat_<polyfit_type>(src_y);
+
+    Mat X = Mat::zeros(order + 1, npoints, wdepth);
+    polyfit_type* pSrcX = (polyfit_type*)srcX.data;
+    polyfit_type* pXData = (polyfit_type*)X.data;
+    int stepX = (int)(X.step/X.elemSize1());
+    for (int y = 0; y < order + 1; ++y)
+    {
+        for (int x = 0; x < npoints; ++x)
+        {
+            if (y == 0)
+                pXData[x] = 1;
+            else if (y == 1)
+                pXData[x + stepX] = pSrcX[x];
+            else pXData[x + y*stepX] = pSrcX[x]* pXData[x + (y-1)*stepX];
+        }
+    }
+    Mat A, b, w;
+    mulTransposed(X, A, false);
+    b = X*srcY;
+    solve(A, b, w, DECOMP_SVD);
+    w.convertTo(dst, std::max(std::max(src_x.depth(), src_y.depth()), CV_32F));
+}
 
 QVector<QPointF> convertToQt(const std::vector<cv::Point2f>&points1)
 {
@@ -371,9 +409,9 @@ QVector<QPointF> ImageItem::findChessboardFastX(const QImage &image,int cols ,in
     std::vector<cv::KeyPoint> key_points;
     cv_detectors::Chessboard::Parameters para;
     para.chessboard_size = cv::Size(cols,rows);
-    para.strength = 5;
-    para.resolution = M_PI*0.25;
-    para.scale = int(log(std::min(gray.rows,gray.cols)/10-2)/log(2));
+    para.scale = std::max(5,int(log(std::min(gray.rows,gray.cols)/10-2)/log(2)));
+    para.strength = 0;
+    para.resolution = M_PI*0.142;
     for(;key_points.empty() && para.scale > 1;--para.scale)
     {
         cv_detectors::Chessboard detector(para);
@@ -484,7 +522,7 @@ QVector<QPointF> StructuredLightImageItem::findLaserLine(const Data &data)
         // we have to clone otherwise checkVector(1) will return -1
         x = dat.col(0).clone();
         y = dat.col(1).clone();
-        cv::polyfit(x,y,coeff,2);
+        polyfit(x,y,coeff,2);
 
         std::vector<cv::Point2f> points2;
         std::vector<cv::Point2f>::iterator iter = points.begin();
