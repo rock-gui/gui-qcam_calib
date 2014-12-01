@@ -408,10 +408,12 @@ QVector<QPointF> ImageItem::findChessboardFastX(const QImage &image,int cols ,in
 
     std::vector<cv::KeyPoint> key_points;
     cv_detectors::Chessboard::Parameters para;
-    para.strength = 40;
+    para.strength = 20;
     para.resolution = M_PI*0.25;
-    para.scale = std::max(2.0,log(std::min(gray.rows,gray.cols)/max(cols,rows)-1)/log(2)-1);
-    for(;key_points.empty() && para.scale > 1;--para.scale)
+    int max_scale = std::max(2.0,log(std::min(gray.rows,gray.cols)/max(cols,rows)-1)/log(2)-1);
+    para.scale = 2;
+    para.chessboard_size = cv::Size(cols,rows);
+    for(;key_points.empty() && para.scale <= max_scale;++para.scale)
     {
         cv_detectors::Chessboard detector(para);
         detector.detect(gray,key_points);
