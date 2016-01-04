@@ -5,13 +5,11 @@
 #include <QFuture>
 #include <QFutureWatcher>
 
-namespace qcam_calib
-{
-    class CameraItem;
-    class ImageItem;
-    class ImageView;
+namespace qcam_calib {
+class CameraItem;
+class ImageItem;
+class ImageView;
 }
-
 
 /**
  * \brief Widget for calibrating pinhole cameras
@@ -22,8 +20,7 @@ namespace qcam_calib
  *
  * \author Alexander.Duda@dfki.de
  */
-class QCamCalib : public QWidget
-{
+class QCamCalib: public QWidget {
     Q_OBJECT
 public:
     QCamCalib(QWidget *parent = 0);
@@ -37,6 +34,14 @@ public slots:
      * \author Alexander.Duda@dfki.de
      */
     void addCamera(int camera_id = -1);
+
+    /**
+     * \brief Adds a new stereo camera to the workspace
+     *
+     * \param[in] camera_id The id of the stereo camera. If no id is given the next free id is used starting from 0
+     * \author trocolit2@gmail.com
+     */
+    void addStereoCamera(int camera_id = -1);
 
     /**
      * \brief Removes a camera from the workspace
@@ -70,7 +75,7 @@ public slots:
      * \param[in] camera_id The id of the camera.
      * \author Alexander.Duda@dfki.de
      */
-    void addImage(const QString &name,const QImage &image,int camera_id=-1);
+    void addImage(const QString &name, const QImage &image, int camera_id = -1);
 
     /**
      * \brief Opens a file dialog and saves the camera parameter as YAML or XML
@@ -101,7 +106,7 @@ public slots:
      * \param[in] name The name of the image
      * \author Alexander.Duda@dfki.de
      */
-    void findChessBoard(int camera_id=-1,const QString &name=QString(""));
+    void findChessBoard(int camera_id = -1, const QString &name = QString(""));
 
 private slots:
     void contextMenuTreeView(const QPoint &point);
@@ -111,7 +116,7 @@ private slots:
 
 private:
     qcam_calib::CameraItem *getCameraItem(int camera_id);
-    qcam_calib::ImageItem *getImageItem(int camera_id,const QString &name);
+    qcam_calib::ImageItem *getImageItem(int camera_id, const QString &name);
 
 private:
     // file paths
