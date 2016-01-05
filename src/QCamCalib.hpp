@@ -36,14 +36,6 @@ public slots:
     void addCamera(int camera_id = -1);
 
     /**
-     * \brief Adds a new stereo camera to the workspace
-     *
-     * \param[in] camera_id The id of the stereo camera. If no id is given the next free id is used starting from 0
-     * \author trocolit2@gmail.com
-     */
-    void addStereoCamera(int camera_id = -1);
-
-    /**
      * \brief Removes a camera from the workspace
      *
      * \note If no camera id is given it is assumed that a camera item is selected in the TreeView.
@@ -107,6 +99,16 @@ public slots:
      * \author Alexander.Duda@dfki.de
      */
     void findChessBoard(int camera_id = -1, const QString &name = QString(""));
+
+
+    // stereo camrea methods
+    /**
+      * \brief Adds a new stereo camera to the workspace
+      *
+      * \param[in] camera_id The id of the stereo camera. If no id is given the next free id is used starting from 0
+      * \author trocolit2@gmail.com
+      */
+     void addStereoCamera(int camera_id = -1);
 
 private slots:
     void contextMenuTreeView(const QPoint &point);

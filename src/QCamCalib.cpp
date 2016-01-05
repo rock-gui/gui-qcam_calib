@@ -1,5 +1,6 @@
 #include "QCamCalib.hpp"
 #include "Items.hpp"
+#include "ItemsStereoCamera.hpp"
 #include "ImageView.hpp"
 
 #include "ui_main_gui.h"
@@ -14,7 +15,6 @@
 
 using namespace qcam_calib;
 const char* CAMERA_BASE_NAME = "camera_";
-const char* STEREO_CAMERA_BASE_NAME = "stereo_camera_";
 
 QCamCalib::QCamCalib(QWidget *parent) :
         QWidget(parent), current_load_path("."), tree_model(NULL), camera_item_menu(NULL), tree_view_menu(NULL), image_item_menu(NULL), progress_dialog_images(NULL), progress_dialog_chessboard(NULL), progress_dialog_calibrate(
@@ -56,11 +56,6 @@ QCamCalib::QCamCalib(QWidget *parent) :
     connect(act, SIGNAL(triggered()), this, SLOT(addCamera()));
     tree_view_menu->addAction(act);
 
-    // stereo camera
-    act = new QAction("add Stereo Camera", this);
-    connect(act, SIGNAL(triggered()), this, SLOT(addStereoCamera()));
-    tree_view_menu->addAction(act);
-
     // image item menu
     image_item_menu = new QMenu(this);
     image_item_menu->addAction(act_remove);
@@ -68,11 +63,17 @@ QCamCalib::QCamCalib(QWidget *parent) :
     connect(act, SIGNAL(triggered()), this, SLOT(findChessBoard()));
     image_item_menu->addAction(act);
 
+    // tree view menu
+    // stereo camera
+    act = new QAction("add Stereo Camera", this);
+    connect(act, SIGNAL(triggered()), this, SLOT(addStereoCamera()));
+    tree_view_menu->addAction(act);
+
     //graphics view
     image_view = gui.imageView;
 
     // add initial camera
-    addCamera();
+    //addCamera();
 
     // progress dialog
     progress_dialog_images = new QProgressDialog("loading images", "cancel", 0, 0, this);
@@ -122,20 +123,6 @@ void QCamCalib::addCamera(int camera_id) {
     for (int i = 0; i <= tree_model->rowCount(); ++i) {
         std::stringstream strstr;
         strstr << CAMERA_BASE_NAME << (camera_id + i);
-        QModelIndexList list = tree_model->match(tree_model->index(0, 0), Qt::DisplayRole, QVariant(strstr.str().c_str()), 1, Qt::MatchExactly);
-        if (list.empty()) {
-            tree_model->appendRow(new qcam_calib::CameraItem(camera_id + i, QString(strstr.str().c_str())));
-            break;
-        }
-    }
-}
-
-void QCamCalib::addStereoCamera(int camera_id) {
-    if (camera_id < 0)
-        camera_id = 0;
-    for (int i = 0; i <= tree_model->rowCount(); ++i) {
-        std::stringstream strstr;
-        strstr << STEREO_CAMERA_BASE_NAME << (camera_id + i);
         QModelIndexList list = tree_model->match(tree_model->index(0, 0), Qt::DisplayRole, QVariant(strstr.str().c_str()), 1, Qt::MatchExactly);
         if (list.empty()) {
             tree_model->appendRow(new qcam_calib::CameraItem(camera_id + i, QString(strstr.str().c_str())));
@@ -329,5 +316,19 @@ void QCamCalib::clickedTreeView(const QModelIndex& index) {
     ImageItem *image = dynamic_cast<ImageItem*>(item);
     if (image)
         image_view->displayImage(image->getImage());
+}
+
+void QCamCalib::addStereoCamera(int camera_id) {
+    if (camera_id < 0)
+        camera_id = 0;
+    for (int i = 0; i <= tree_model->rowCount(); ++i) {
+        std::stringstream strstr;
+        strstr << qcam_calib::StereoItem::getBaseName() << (camera_id + i);
+        QModelIndexList list = tree_model->match(tree_model->index(0, 0), Qt::DisplayRole, QVariant(strstr.str().c_str()), 1, Qt::MatchExactly);
+        if (list.empty()) {
+            tree_model->appendRow(new qcam_calib::StereoItem(camera_id + i, QString(strstr.str().c_str())));
+            break;
+        }
+    }
 }
 
