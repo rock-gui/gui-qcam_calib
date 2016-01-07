@@ -8,6 +8,8 @@
 #include "ItemsStereoCamera.hpp"
 
 #include <stdexcept>
+#include <iostream>
+#include <QFileInfo>
 
 using namespace qcam_calib;
 
@@ -62,7 +64,8 @@ void StereoCameraParameterItem::save(const QString& path) const {
 QVector<QPointF> StereoImageItem::findChessboard(const QImage& image, int cols, int rows) {
 }
 
-StereoImageItem::StereoImageItem(const QString& name, const QImage& image) {
+StereoImageItem::StereoImageItem(const QString& name, const QString& path) :
+        chessboard(NULL), QCamCalibItem(name), image_path(path) {
 }
 
 StereoImageItem::~StereoImageItem() {
@@ -97,7 +100,8 @@ StereoCameraItem::StereoCameraItem(int id, const QString& string) :
 int StereoCameraItem::getId() {
 }
 
-StereoImageItem* StereoCameraItem::addImage(const QString& name, const QImage& image) {
+StereoImageItem* StereoCameraItem::addImages(const QList<QStandardItem*> &stereoImageitems) {
+    images->appendRow(stereoImageitems);
 }
 
 StereoImageItem* StereoCameraItem::getImageItem(const QString& name) {
@@ -136,3 +140,26 @@ void StereoItem::saveParameter(const QString& path) const {
 bool StereoItem::isCalibrated() {
 }
 
+QList<QStandardItem*> StereoTools::loadStereoImageItem(const QString &path) {
+
+    QFileInfo info(path);
+
+    QList<QStandardItem*> items;
+    StereoImageItem *item = new StereoImageItem(info.fileName(), info.absoluteFilePath());
+
+    item->setEditable(false);
+    items.append(item);
+
+    items.append(new QCamCalibItem("No Chessboard"));
+    items.back()->setEditable(false);
+
+    return items;
+}
+
+QList<QStandardItem*> StereoTools::findChessboard(const QList<QStandardItem*> &items) {
+
+    std::cout<<"findChessboard"<<std::endl;
+    std::cout<<"ITEM NAME "<<items.at(0)->text().toStdString()<<std::endl;
+
+    return items;
+}

@@ -45,7 +45,7 @@ QCamCalib::QCamCalib(QWidget *parent) :
     connect(act, SIGNAL(triggered()), this, SLOT(saveCameraParameter()));
     camera_item_menu->addAction(act);
 
-    QAction *act_remove = new QAction("remove", this);
+    QAction *act_remove = new QAction("Remove", this);
     connect(act_remove, SIGNAL(triggered()), this, SLOT(removeCurrentItem()));
     camera_item_menu->addAction(act_remove);
 
@@ -64,10 +64,40 @@ QCamCalib::QCamCalib(QWidget *parent) :
     image_item_menu->addAction(act);
 
     // tree view menu
-    // stereo camera
-    act = new QAction("add Stereo Camera", this);
-    connect(act, SIGNAL(triggered()), this, SLOT(addStereoCamera()));
+    // stereo item
+    act = new QAction("Add Stereo Camera", this);
+    connect(act, SIGNAL(triggered()), this, SLOT(addStereoItem()));
     tree_view_menu->addAction(act);
+
+    // stereo item view menu
+    this->stereo_item_menu = new QMenu(this);
+    this->stereo_item_menu->addAction(act_remove);
+
+    act = new QAction("Calibre Stereo Camera", this);
+    this->stereo_item_menu->addAction(act);
+    connect(act, SIGNAL(triggered()), this, SLOT(calibreStereoItem()));
+    this->stereo_item_menu->addAction(act);
+
+    act = new QAction("Save Stereo Camera Parameters", this);
+    this->stereo_item_menu->addAction(act);
+    connect(act, SIGNAL(triggered()), this, SLOT(saveStereoItemParameters()));
+    this->stereo_item_menu->addAction(act);
+
+    // stereo camera menu
+    this->stereo_camera_item_menu = new QMenu(this);
+    act = new QAction("Load Images", this);
+    this->stereo_camera_item_menu->addAction(act);
+    connect(act, SIGNAL(triggered()), this, SLOT(loadStereoImages()));
+    this->stereo_camera_item_menu->addAction(act);
+
+    // stereo image menu
+    this->stereo_image_item_menu = new QMenu(this);
+    this->stereo_image_item_menu->addAction(act_remove);
+
+    act = new QAction("Find Chessboard", this);
+    this->stereo_image_item_menu->addAction(act);
+    connect(act, SIGNAL(triggered()), this, SLOT(stereofindChessBoard()));
+    this->stereo_image_item_menu->addAction(act);
 
     //graphics view
     image_view = gui.imageView;
@@ -93,6 +123,14 @@ QCamCalib::QCamCalib(QWidget *parent) :
     future_watcher_calibrate = new QFutureWatcher<void>(this);
     connect(future_watcher_calibrate, SIGNAL(progressValueChanged(int)), progress_dialog_calibrate, SLOT(setValue(int)));
     connect(future_watcher_calibrate, SIGNAL(finished()), progress_dialog_calibrate, SLOT(accept()));
+
+    // process dialog for stereo procedures
+    this->progress_dialog_stereo_images_items = new QProgressDialog("Loading Images", "Cancel", 0, 0, this);
+    this->future_watcher_stereo_images_items = new QFutureWatcher<QList<QStandardItem*> >(this);
+    connect(this->future_watcher_stereo_images_items, SIGNAL(progressValueChanged(int)), this->progress_dialog_stereo_images_items, SLOT(setValue(int)));
+    connect(this->future_watcher_stereo_images_items, SIGNAL(progressRangeChanged(int, int)), this->progress_dialog_stereo_images_items, SLOT(setRange(int, int)));
+    connect(this->future_watcher_stereo_images_items, SIGNAL(finished()), this->progress_dialog_stereo_images_items, SLOT(accept()));
+
 }
 
 QCamCalib::~QCamCalib() {
@@ -112,6 +150,12 @@ void QCamCalib::contextMenuTreeView(const QPoint &point) {
             camera_item_menu->exec(tree_view->viewport()->mapToGlobal(point));
         else if (dynamic_cast<ImageItem*>(item))
             image_item_menu->exec(tree_view->viewport()->mapToGlobal(point));
+        else if (dynamic_cast<StereoItem*>(item))
+            this->stereo_item_menu->exec(tree_view->viewport()->mapToGlobal(point));
+        else if (dynamic_cast<StereoCameraItem*>(item))
+            this->stereo_camera_item_menu->exec(tree_view->viewport()->mapToGlobal(point));
+        else if (dynamic_cast<StereoImageItem*>(item))
+            this->stereo_image_item_menu->exec(tree_view->viewport()->mapToGlobal(point));
     } else {
         tree_view_menu->exec(tree_view->viewport()->mapToGlobal(point));
     }
@@ -318,7 +362,7 @@ void QCamCalib::clickedTreeView(const QModelIndex& index) {
         image_view->displayImage(image->getImage());
 }
 
-void QCamCalib::addStereoCamera(int camera_id) {
+void QCamCalib::addStereoItem(int camera_id) {
     if (camera_id < 0)
         camera_id = 0;
     for (int i = 0; i <= tree_model->rowCount(); ++i) {
@@ -330,5 +374,96 @@ void QCamCalib::addStereoCamera(int camera_id) {
             break;
         }
     }
+}
+
+void QCamCalib::saveStereoItemParameters(int camera_id) {
+    std::cout << "saveStereoCameraParameters" << std::endl;
+}
+
+void QCamCalib::calibreStereoItem(int camera_id) {
+    std::cout << "calibreStereoCamera" << std::endl;
+}
+
+StereoCameraItem *QCamCalib::getStereoCameraItem(int camera_id) {
+    StereoCameraItem *item = NULL;
+    if (camera_id < 0) {
+        QTreeView *tree_view = findChild<QTreeView*>("treeView");
+        if (!tree_view)
+            throw std::runtime_error("Cannot find treeView object");
+        QModelIndex index = tree_view->currentIndex();
+        if (index.isValid())
+            item = dynamic_cast<StereoCameraItem*>(tree_model->itemFromIndex(index));
+    } else {
+        for (int i = 0; i < tree_model->rowCount(); ++i) {
+            item = dynamic_cast<StereoCameraItem*>(tree_model->item(i, 0));
+            if (item && item->getId() == camera_id)
+                break;
+            else
+                item = NULL;
+        }
+    }
+    if (item == NULL)
+        throw std::runtime_error("Internal error: cannot find camera");
+    return item;
+}
+
+void QCamCalib::loadStereoImages(int camera_id) {
+    std::cout << "loadStereoImages" << std::endl;
+
+    QSpinBox *cols = findChild<QSpinBox*>("spinBoxCols");
+    QSpinBox *rows = findChild<QSpinBox*>("spinBoxRows");
+    if (!cols || !rows)
+        throw std::runtime_error("Cannot find chessboard config!!");
+
+    //select images
+    QStringList paths = QFileDialog::getOpenFileNames(this, "Open images", current_load_path, "Images (*.png *.jpg)");
+
+    //load stereo image items in parallel
+    QFuture<QList<QStandardItem*> > stereoImagesItems = QtConcurrent::mapped(paths, StereoTools::loadStereoImageItem);
+    this->future_watcher_stereo_images_items->setFuture(stereoImagesItems);
+    if (QDialog::Accepted != this->progress_dialog_stereo_images_items->exec() && this->future_watcher_stereo_images_items->isCanceled())
+        return;
+    this->future_watcher_stereo_images_items->waitForFinished();
+
+//    QFuture<QList<QStandardItem*> > stereoImagesItemsWithChessboard = QtConcurrent::mapped(stereoImagesItems, StereoTools::findChessboard);
+
+
+    //add images items to camera
+    QFuture<QList<QStandardItem*> >::const_iterator iterStereoImageitems;
+    StereoCameraItem *item = getStereoCameraItem(camera_id);
+    for (iterStereoImageitems = stereoImagesItems.begin(); iterStereoImageitems != stereoImagesItems.end(); ++iterStereoImageitems)
+        item->addImages(*iterStereoImageitems);
+
+
+    //find chess boards in parallel
+    //    QFuture<QVector<QPointF> > chessboards;
+    //    chessboards = QtConcurrent::mapped(images, boost::bind(static_cast<QVector<QPointF> (*)(const QImage&, int, int)>(ImageItem::findChessboard), _1,cols->value(),rows->value()));
+    //    future_watcher_chessboard->setFuture(chessboards);
+    //    progress_dialog_chessboard->setRange(progress_dialog_images->minimum(), progress_dialog_images->maximum());
+    //    if (QDialog::Accepted != progress_dialog_chessboard->exec() && future_watcher_chessboard->isCanceled())
+    //        return;
+    //    future_watcher_chessboard->waitForFinished();
+    //    progress_dialog_chessboard->close();
+    //
+    //    //add items
+    //    QStringList::const_iterator iter_path = paths.begin();
+    //    QFuture<QImage>::const_iterator iter_image = images.begin();
+    //    QFuture<QVector<QPointF> >::const_iterator iter_chessboard = chessboards.begin();
+    //    ImageItem *last_image_item = NULL;
+    //    for (; iter_path != paths.end() && iter_image != images.end() && iter_chessboard != chessboards.end(); ++iter_path, ++iter_image, ++iter_chessboard) {
+    //        QFileInfo info(*iter_path);
+    //        current_load_path = info.absolutePath();
+    //
+    //        CameraItem *item = getCameraItem(camera_id);
+    //        last_image_item = item->addImage(info.fileName(), *iter_image);
+    //        last_image_item->setChessboard(*iter_chessboard, cols->value(), rows->value());
+    //    }
+    //    if (last_image_item)
+    //        displayImage(last_image_item->getImage());
+
+}
+
+void QCamCalib::stereofindChessBoard(int camera_id) {
+    std::cout << "stereofindChessBoard" << std::endl;
 }
 

@@ -9,6 +9,7 @@ namespace qcam_calib {
 class CameraItem;
 class ImageItem;
 class ImageView;
+class StereoCameraItem;
 }
 
 /**
@@ -103,12 +104,20 @@ public slots:
 
     // stereo camrea methods
     /**
-      * \brief Adds a new stereo camera to the workspace
-      *
-      * \param[in] camera_id The id of the stereo camera. If no id is given the next free id is used starting from 0
-      * \author trocolit2@gmail.com
-      */
-     void addStereoCamera(int camera_id = -1);
+     * \brief Adds a new stereo camera to the workspace
+     *
+     * \param[in] camera_id The id of the stereo camera. If no id is given the next free id is used starting from 0
+     * \author trocolit2@gmail.com
+     */
+    void addStereoItem(int camera_id = -1);
+
+    void saveStereoItemParameters(int camera_id = -1);
+
+    void calibreStereoItem(int camera_id = -1);
+
+    void loadStereoImages(int camera_id = -1);
+
+    void stereofindChessBoard(int camera_id = -1);
 
 private slots:
     void contextMenuTreeView(const QPoint &point);
@@ -119,6 +128,11 @@ private slots:
 private:
     qcam_calib::CameraItem *getCameraItem(int camera_id);
     qcam_calib::ImageItem *getImageItem(int camera_id, const QString &name);
+
+    //find camera from stereo item
+    qcam_calib::StereoCameraItem *getStereoCameraItem(int camera_id);
+
+
 
 private:
     // file paths
@@ -132,6 +146,10 @@ private:
     QMenu *tree_view_menu;
     QMenu *image_item_menu;
 
+    QMenu *stereo_item_menu;
+    QMenu *stereo_camera_item_menu;
+    QMenu *stereo_image_item_menu;
+
     // image dispay
     qcam_calib::ImageView *image_view;
 
@@ -142,6 +160,9 @@ private:
     QFutureWatcher<QImage> *future_watcher_images;
     QFutureWatcher<QVector<QPointF> > *future_watcher_chessboard;
     QFutureWatcher<void> *future_watcher_calibrate;
+
+    QProgressDialog *progress_dialog_stereo_images_items;
+    QFutureWatcher<QList<QStandardItem*> > *future_watcher_stereo_images_items;
 };
 
 #endif /* QCAMCALIB_HPP */

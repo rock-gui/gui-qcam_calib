@@ -34,10 +34,11 @@ public:
 
 class StereoImageItem: public QCamCalibItem {
 public:
-    static QVector<QPointF> findChessboard(const QImage &image, int cols, int rows);
-    StereoImageItem(const QString &name, const QImage &image);
+    QVector<QPointF> findChessboard(const QImage &image, int cols, int rows);
+    StereoImageItem(const QString &name, const QString &path);
     virtual ~StereoImageItem();
 
+    const QString &getImagePath();
     const QVector<QPointF> &getChessboardCorners() const;
     QImage loadRawImage();
     QImage drawImageWithChessboard();
@@ -52,7 +53,7 @@ class StereoCameraItem: public QCamCalibItem {
 public:
     StereoCameraItem(int id, const QString &string);
     int getId();
-    StereoImageItem* addImage(const QString &name, const QImage &image);
+    StereoImageItem* addImages(const QList<QStandardItem*> &stereoImageitems);
     StereoImageItem* getImageItem(const QString &name);
 
 private:
@@ -76,6 +77,15 @@ private:
     StereoCameraParameterItem* fundamental_matrix;
     StereoCameraItem *left_camera;
     StereoCameraItem *right_camera;
+};
+
+class StereoTools {
+
+public:
+
+    static QList<QStandardItem*> loadStereoImageItem(const QString &path);
+    static QList<QStandardItem*> findChessboard(const QList<QStandardItem*> &items);
+
 };
 
 }
