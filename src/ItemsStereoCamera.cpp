@@ -7,13 +7,16 @@
 
 #include "ItemsStereoCamera.hpp"
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
 #include <stdexcept>
 #include <iostream>
 #include <QFileInfo>
 
 using namespace qcam_calib;
 
-//StereoCameraParameterItem
 StereoCameraParameterItem::StereoCameraParameterItem(const QString& string, QList<QString> parameters) :
         QCamCalibItem(string) {
 
@@ -61,9 +64,6 @@ void StereoCameraParameterItem::save(const QString& path) const {
 }
 
 //StereoImageItem
-QVector<QPointF> StereoImageItem::findChessboard(const QImage& image, int cols, int rows) {
-}
-
 StereoImageItem::StereoImageItem(const QString& name, const QString& path) :
         chessboard(NULL), QCamCalibItem(name), image_path(path) {
 }
@@ -71,16 +71,31 @@ StereoImageItem::StereoImageItem(const QString& name, const QString& path) :
 StereoImageItem::~StereoImageItem() {
 }
 
+bool StereoImageItem::isChessboardFound() {
+    return this->chessboard.size() > 0;
+}
+
+void StereoImageItem::setChessboardCorners(QVector<QPointF> points) {
+    this->chessboard = points;
+}
+
 const QVector<QPointF>& StereoImageItem::getChessboardCorners() const {
+    return this->chessboard;
 }
 
-QImage StereoImageItem::loadRawImage() {
-}
+QImage qcam_calib::StereoImageItem::getImageWithChessboard(int cols, int rows) {
 
-QImage StereoImageItem::drawImageWithChessboard() {
-}
+    QImage qtImage(this->image_path);
+    qtImage = qtImage.convertToFormat(QImage::Format_RGB888);
+    cv::Mat cvImage(qtImage.height(), qtImage.width(), CV_8UC3, qtImage.bits(), qtImage.bytesPerLine());
 
-bool StereoImageItem::findChessboard() {
+    std::vector<cv::Point2f> cvPoints;
+    if (this->isChessboardFound()) {
+        cvPoints = StereoTools::convertQVectorQPointFToVectorPoints2f(this->chessboard);
+        cv::drawChessboardCorners(cvImage, cv::Size(cols, rows), cvPoints, true);
+    }
+
+    return QImage(cvImage.data, cvImage.cols, cvImage.rows, cvImage.step, QImage::Format_RGB888).copy();
 }
 
 //StereoCameraItem
@@ -94,10 +109,10 @@ StereoCameraItem::StereoCameraItem(int id, const QString& string) :
     images = new QStandardItem("Images");
     images->setEditable(false);
     appendRow(images);
-
 }
 
 int StereoCameraItem::getId() {
+    return this->camera_id;
 }
 
 StereoImageItem* StereoCameraItem::addImages(const QList<QStandardItem*> &stereoImageitems) {
@@ -138,6 +153,21 @@ void StereoItem::saveParameter(const QString& path) const {
 }
 
 bool StereoItem::isCalibrated() {
+
+}
+
+QList<QStandardItem*> StereoTools::loadStereoImageAndFindChessboardItem(const QString& path, int cols, int rows) {
+
+    QList<QStandardItem*> items = loadStereoImageItem(path);
+
+    StereoImageItem *item = dynamic_cast<StereoImageItem*>(items.at(0));
+    item->setChessboardCorners(findChessboard(path, cols, rows));
+
+    if (item->isChessboardFound())
+        items.at(1)->setText("OK, Chessboard Found");
+
+    return items;
+
 }
 
 QList<QStandardItem*> StereoTools::loadStereoImageItem(const QString &path) {
@@ -156,10 +186,30 @@ QList<QStandardItem*> StereoTools::loadStereoImageItem(const QString &path) {
     return items;
 }
 
-QList<QStandardItem*> StereoTools::findChessboard(const QList<QStandardItem*> &items) {
+QVector<QPointF> StereoTools::findChessboard(const QString &path, int cols, int rows) {
 
-    std::cout<<"findChessboard"<<std::endl;
-    std::cout<<"ITEM NAME "<<items.at(0)->text().toStdString()<<std::endl;
+    QImage qtImage(path);
+    qtImage = qtImage.convertToFormat(QImage::Format_RGB888);
+    cv::Mat cvImage(qtImage.height(), qtImage.width(), CV_8UC3, qtImage.bits(), qtImage.bytesPerLine());
+    cv::cvtColor(cvImage, cvImage, cv::COLOR_BGR2GRAY);
+    std::vector<cv::Point2f> cvPoints;
+    cv::findChessboardCorners(cvImage, cv::Size(cols, rows), cvPoints);
+//
+    return convertVectorPoints2fToQVectorQPointF(cvPoints);
+}
 
-    return items;
+QVector<QPointF> StereoTools::convertVectorPoints2fToQVectorQPointF(const std::vector<cv::Point2f>&points1) {
+    QVector<QPointF> points2;
+    std::vector<cv::Point2f>::const_iterator iter = points1.begin();
+    for (; iter != points1.end(); ++iter)
+        points2.push_back(QPointF(iter->x, iter->y));
+    return points2;
+}
+
+std::vector<cv::Point2f> StereoTools::convertQVectorQPointFToVectorPoints2f(const QVector<QPointF>&points1) {
+    std::vector<cv::Point2f> points2;
+    QVector<QPointF>::const_iterator iter = points1.begin();
+    for (; iter != points1.end(); ++iter)
+        points2.push_back(cv::Point2f(iter->x(), iter->y()));
+    return points2;
 }

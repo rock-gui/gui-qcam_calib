@@ -12,6 +12,8 @@
 #include <QMenu>
 #include <QVector>
 
+#include <opencv2/core/core.hpp>
+
 #include <string>
 
 #include "Items.hpp"
@@ -34,15 +36,15 @@ public:
 
 class StereoImageItem: public QCamCalibItem {
 public:
-    QVector<QPointF> findChessboard(const QImage &image, int cols, int rows);
     StereoImageItem(const QString &name, const QString &path);
     virtual ~StereoImageItem();
 
+    QImage getImageWithChessboard(int cols, int rows);
+
+    bool isChessboardFound();
     const QString &getImagePath();
     const QVector<QPointF> &getChessboardCorners() const;
-    QImage loadRawImage();
-    QImage drawImageWithChessboard();
-    bool findChessboard();
+    void setChessboardCorners(QVector<QPointF> points);
 
 private:
     QString image_path; // path to image
@@ -83,9 +85,12 @@ class StereoTools {
 
 public:
 
+    static QList<QStandardItem*> loadStereoImageAndFindChessboardItem(const QString& path, int cols, int rows);
     static QList<QStandardItem*> loadStereoImageItem(const QString &path);
-    static QList<QStandardItem*> findChessboard(const QList<QStandardItem*> &items);
+    static QVector<QPointF> findChessboard(const QString &path, int cols, int rows);
 
+    static QVector<QPointF> convertVectorPoints2fToQVectorQPointF(const std::vector<cv::Point2f> &points1);
+    static std::vector<cv::Point2f> convertQVectorQPointFToVectorPoints2f(const QVector<QPointF> &points1);
 };
 
 }
