@@ -72,7 +72,11 @@ StereoImageItem::~StereoImageItem() {
 }
 
 bool StereoImageItem::isChessboardFound() {
-    return this->chessboard.size() > 0;
+    return &this->chessboard != 0 && this->chessboard.size() > 0;
+}
+
+const QString& StereoImageItem::getImagePath() const {
+    return this->image_path;
 }
 
 void StereoImageItem::setChessboardCorners(QVector<QPointF> points) {
@@ -122,6 +126,10 @@ StereoImageItem* StereoCameraItem::addImages(const QList<QStandardItem*> &stereo
 StereoImageItem* StereoCameraItem::getImageItem(const QString& name) {
 }
 
+QStandardItem* StereoCameraItem::getImagesItems() const {
+    return this->images;
+}
+
 //StereoItem
 StereoItem::StereoItem(int id, const QString& string) :
         QCamCalibItem(string), stereo_id(id) {
@@ -147,6 +155,48 @@ char* StereoItem::getBaseName() {
 }
 
 void StereoItem::calibrate(int cols, int rows, float dx, float dy) {
+
+    std::cout << "StereoItem::calibrate" << std::endl;
+    QStandardItem* leftImages = this->left_camera->getImagesItems();
+    QStandardItem* rightImages = this->right_camera->getImagesItems();
+
+    int itemRowCount = leftImages->rowCount();
+    if (leftImages->rowCount() > rightImages->rowCount())
+        itemRowCount = rightImages->rowCount();
+
+    std::vector<std::vector<cv::Point3f> > objectPoints;
+    std::vector<std::vector<cv::Point2f> > leftPoints, rightPoints;
+
+    std::vector<cv::Point3f> chessboard3DPonts;
+    for (int row = 0; row < rows; ++row)
+        for (int col = 0; col < cols; ++col)
+            chessboard3DPonts.push_back(cv::Point3f(dx * col, dy * row, 0));
+
+    int imageSample = -1;
+    for (int i = 0; i < itemRowCount; ++i) {
+        StereoImageItem* leftStereoImage = dynamic_cast<StereoImageItem*>(leftImages->child(i, 0));
+        StereoImageItem* rightStereoImage = dynamic_cast<StereoImageItem*>(rightImages->child(i, 0));
+
+        bool bothChessboardDetect = leftStereoImage->isChessboardFound() && rightStereoImage->isChessboardFound();
+        if (!bothChessboardDetect)
+            continue;
+
+        leftPoints.push_back(StereoTools::convertQVectorQPointFToVectorPoints2f(leftStereoImage->getChessboardCorners()));
+        rightPoints.push_back(StereoTools::convertQVectorQPointFToVectorPoints2f(rightStereoImage->getChessboardCorners()));
+        objectPoints.push_back(chessboard3DPonts);
+        imageSample = i;
+    }
+
+    if (objectPoints.size() < 5)
+        throw std::runtime_error("Not enough detected chessboards!");
+
+    StereoImageItem* stereoImage = dynamic_cast<StereoImageItem*>(leftImages->child(imageSample, 0));
+    QImage qtImage(stereoImage->getImagePath());
+    qtImage = qtImage.convertToFormat(QImage::Format_RGB888);
+    cv::Size imageSize(qtImage.height(), qtImage.width());
+
+    StereoTools::stereoCalibrate(leftPoints, rightPoints, objectPoints, imageSize);
+
 }
 
 void StereoItem::saveParameter(const QString& path) const {
@@ -198,6 +248,16 @@ QVector<QPointF> StereoTools::findChessboard(const QString &path, int cols, int 
     return convertVectorPoints2fToQVectorQPointF(cvPoints);
 }
 
+void qcam_calib::StereoTools::stereoCalibrate(std::vector<std::vector<cv::Point2f> > leftPoints, std::vector<std::vector<cv::Point2f> > rightPoints,
+        std::vector<std::vector<cv::Point3f> > objectPoints, cv::Size imageSize) {
+
+    std::cout << "SIZE LEFT" << leftPoints.size() << std::endl;
+    std::cout << "SIZE RIGHT" << rightPoints.size() << std::endl;
+    std::cout << "SIZE CHESSBOARD" << objectPoints.size() << std::endl;
+    std::cout << "IMAGE SIZE" << imageSize << std::endl;
+
+}
+
 QVector<QPointF> StereoTools::convertVectorPoints2fToQVectorQPointF(const std::vector<cv::Point2f>&points1) {
     QVector<QPointF> points2;
     std::vector<cv::Point2f>::const_iterator iter = points1.begin();
@@ -213,3 +273,4 @@ std::vector<cv::Point2f> StereoTools::convertQVectorQPointFToVectorPoints2f(cons
         points2.push_back(cv::Point2f(iter->x(), iter->y()));
     return points2;
 }
+

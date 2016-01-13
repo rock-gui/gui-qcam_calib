@@ -113,11 +113,9 @@ public slots:
 
     void saveStereoItemParameters(int camera_id = -1);
 
-    void calibreStereoItem(int camera_id = -1);
+    void calibreStereoItem(int stereo_id = -1);
 
     void loadStereoImages(int camera_id = -1);
-
-    void stereofindChessBoard(int camera_id = -1);
 
 private slots:
     void contextMenuTreeView(const QPoint &point);
@@ -130,7 +128,9 @@ private:
     qcam_calib::ImageItem *getImageItem(int camera_id, const QString &name);
 
     //find camera from stereo item
-    qcam_calib::StereoCameraItem *getStereoCameraItem(int camera_id);
+    template<typename T>
+    T getItems(int item_id, QString erro_msg);
+
 
 
 

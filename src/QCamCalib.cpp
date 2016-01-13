@@ -94,11 +94,6 @@ QCamCalib::QCamCalib(QWidget *parent) :
     this->stereo_image_item_menu = new QMenu(this);
     this->stereo_image_item_menu->addAction(act_remove);
 
-    act = new QAction("Find Chessboard", this);
-    this->stereo_image_item_menu->addAction(act);
-    connect(act, SIGNAL(triggered()), this, SLOT(stereofindChessBoard()));
-    this->stereo_image_item_menu->addAction(act);
-
     //graphics view
     image_view = gui.imageView;
 
@@ -365,7 +360,7 @@ void QCamCalib::clickedTreeView(const QModelIndex& index) {
     QSpinBox *cols = findChild<QSpinBox*>("spinBoxCols");
     QSpinBox *rows = findChild<QSpinBox*>("spinBoxRows");
     if (stereo_image)
-        image_view->displayImage(stereo_image->getImageWithChessboard(cols->value(),rows->value()));
+        image_view->displayImage(stereo_image->getImageWithChessboard(cols->value(), rows->value()));
 }
 
 void QCamCalib::addStereoItem(int camera_id) {
@@ -384,32 +379,29 @@ void QCamCalib::addStereoItem(int camera_id) {
 
 void QCamCalib::saveStereoItemParameters(int camera_id) {
     std::cout << "saveStereoCameraParameters" << std::endl;
-}
 
-void QCamCalib::calibreStereoItem(int camera_id) {
-    std::cout << "calibreStereoCamera" << std::endl;
 }
-
-StereoCameraItem *QCamCalib::getStereoCameraItem(int camera_id) {
-    StereoCameraItem *item = NULL;
-    if (camera_id < 0) {
+template<typename T>
+T QCamCalib::getItems(int item_id, QString erro_msg) {
+    T item = NULL;
+    if (item_id < 0) {
         QTreeView *tree_view = findChild<QTreeView*>("treeView");
         if (!tree_view)
             throw std::runtime_error("Cannot find treeView object");
         QModelIndex index = tree_view->currentIndex();
         if (index.isValid())
-            item = dynamic_cast<StereoCameraItem*>(tree_model->itemFromIndex(index));
+            item = dynamic_cast<T>(tree_model->itemFromIndex(index));
     } else {
         for (int i = 0; i < tree_model->rowCount(); ++i) {
-            item = dynamic_cast<StereoCameraItem*>(tree_model->item(i, 0));
-            if (item && item->getId() == camera_id)
+            item = dynamic_cast<T>(tree_model->item(i, 0));
+            if (item && item->getId() == item_id)
                 break;
             else
                 item = NULL;
         }
     }
     if (item == NULL)
-        throw std::runtime_error("Internal error: cannot find camera");
+        throw std::runtime_error(erro_msg.toStdString());
     return item;
 }
 
@@ -435,13 +427,34 @@ void QCamCalib::loadStereoImages(int camera_id) {
     this->future_watcher_stereo_images_items->waitForFinished();
 
     //add images items to camera
+    QString error_msg = "Internal error: Cannot find camera";
+    StereoCameraItem *item = getItems<StereoCameraItem*>(camera_id, error_msg);
+
     QFuture<QList<QStandardItem*> >::const_iterator iterStereoImageitems;
-    StereoCameraItem *item = getStereoCameraItem(camera_id);
     for (iterStereoImageitems = stereoImagesItems.begin(); iterStereoImageitems != stereoImagesItems.end(); ++iterStereoImageitems)
         item->addImages(*iterStereoImageitems);
 }
 
-void QCamCalib::stereofindChessBoard(int camera_id) {
-    std::cout << "stereofindChessBoard" << std::endl;
-}
+void QCamCalib::calibreStereoItem(int stereo_id) {
+    std::cout << "calibreStereoCamera" << std::endl;
 
+    QSpinBox *cols = findChild<QSpinBox*>("spinBoxCols");
+    QSpinBox *rows = findChild<QSpinBox*>("spinBoxRows");
+    QDoubleSpinBox *dx = findChild<QDoubleSpinBox*>("spinBoxDx");
+    QDoubleSpinBox *dy = findChild<QDoubleSpinBox*>("spinBoxDy");
+    if (!cols || !rows || !dx || !dy)
+        throw std::runtime_error("cannot find chessboard config");
+
+    QString erro_msg = "Internal error: Can not find camera";
+    StereoItem* stereo_item = getItems<StereoItem*>(stereo_id, erro_msg);
+
+    try {
+        stereo_item->calibrate(cols->value(), rows->value(), dx->value(), dy->value());
+    } catch (std::exception& e) {
+        QErrorMessage box;
+        box.showMessage(QString(e.what()));
+        box.exec();
+        return;
+    }
+
+}
