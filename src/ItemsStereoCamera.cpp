@@ -17,6 +17,22 @@
 
 using namespace qcam_calib;
 
+void fillParametersValuesFromIntrinsecMatrix(StereoCameraParameterItem* items, cv::Mat intrinsic, cv::Mat distMatrix, QList<QString> parameters) {
+
+    items->setParameter(parameters[0], intrinsic.at<double>(0, 0)); // fx
+    items->setParameter(parameters[1], intrinsic.at<double>(1, 1)); // fy
+    items->setParameter(parameters[2], intrinsic.at<double>(0, 2)); // cx
+    items->setParameter(parameters[3], intrinsic.at<double>(1, 2)); // cx
+    items->setParameter(parameters[4], distMatrix.at<double>(0)); // k1
+    items->setParameter(parameters[5], distMatrix.at<double>(1)); // k2
+    items->setParameter(parameters[6], distMatrix.at<double>(2)); // p1
+    items->setParameter(parameters[7], distMatrix.at<double>(3)); // p2
+    items->setParameter(parameters[8], distMatrix.at<double>(4)); // k3
+    items->setParameter(parameters[9], distMatrix.at<double>(5)); // k4
+    items->setParameter(parameters[10], distMatrix.at<double>(6)); // k5
+    items->setParameter(parameters[11], distMatrix.at<double>(7)); // k6
+}
+
 StereoCameraParameterItem::StereoCameraParameterItem(const QString& string, QList<QString> parameters) :
         QCamCalibItem(string) {
 
@@ -55,7 +71,7 @@ double StereoCameraParameterItem::getParameter(const QString& name) const {
         if (item)
             return item->data(Qt::EditRole).toDouble();
     } else
-        throw std::runtime_error("cannot find parameter");
+        throw std::runtime_error("Cannot find parameter!");
     return 0;
 }
 
@@ -130,14 +146,27 @@ QStandardItem* StereoCameraItem::getImagesItems() const {
     return this->images;
 }
 
+StereoCameraParameterItem* StereoCameraItem::getParameter() const {
+    return this->parameter;
+}
+
 //StereoItem
 StereoItem::StereoItem(int id, const QString& string) :
         QCamCalibItem(string), stereo_id(id) {
 
     setEditable(false);
 
-    this->fundamental_matrix = new StereoCameraParameterItem("Fundamental Matrix", FUNDAMENTAL_MATRIX_PARAMETERS_LIST);
-    appendRow(this->fundamental_matrix);
+    this->parameters = new QStandardItem("Parameters");
+    this->parameters->setEditable(false);
+    appendRow(this->parameters);
+
+    this->parameters->appendRow(new StereoCameraParameterItem("Fundamental Matrix", FUNDAMENTAL_MATRIX_PARAMETERS_LIST));
+    this->parameters->appendRow(new StereoCameraParameterItem("Essential Matrix", FUNDAMENTAL_MATRIX_PARAMETERS_LIST));
+    this->parameters->appendRow(new StereoCameraParameterItem("Rotation Matrix", ROTATION_MATRIX_PARAMETERS_LIST));
+    this->parameters->appendRow(new StereoCameraParameterItem("Translation Matrix", TRANSLATION_VECTOR_PARAMETERS_LIST));
+
+    this->error_values = new StereoCameraParameterItem("Error Values", ERROR_VALUES_PARAMETERS_LIST);
+    appendRow(this->error_values);
 
     this->left_camera = new StereoCameraItem(0, "Left Camera");
     appendRow(this->left_camera);
@@ -195,7 +224,13 @@ void StereoItem::calibrate(int cols, int rows, float dx, float dy) {
     qtImage = qtImage.convertToFormat(QImage::Format_RGB888);
     cv::Size imageSize(qtImage.height(), qtImage.width());
 
-    StereoTools::stereoCalibrate(leftPoints, rightPoints, objectPoints, imageSize);
+    std::vector<cv::Mat> vecMatrix = StereoTools::stereoCalibrate(leftPoints, rightPoints, objectPoints, imageSize);
+
+    fillParametersValuesFromIntrinsecMatrix(this->left_camera->getParameter(), vecMatrix[0], vecMatrix[1], INTRINSIC_PARAMETERS_LIST);
+    fillParametersValuesFromIntrinsecMatrix(this->right_camera->getParameter(), vecMatrix[2], vecMatrix[3], INTRINSIC_PARAMETERS_LIST);
+
+    this->error_values->setParameter(ERROR_VALUES_PARAMETERS_LIST[0], vecMatrix[4].at<float>(0,0));
+    this->error_values->setParameter(ERROR_VALUES_PARAMETERS_LIST[1], vecMatrix[4].at<float>(0,1));
 
 }
 
@@ -217,7 +252,6 @@ QList<QStandardItem*> StereoTools::loadStereoImageAndFindChessboardItem(const QS
         items.at(1)->setText("OK, Chessboard Found");
 
     return items;
-
 }
 
 QList<QStandardItem*> StereoTools::loadStereoImageItem(const QString &path) {
@@ -248,14 +282,64 @@ QVector<QPointF> StereoTools::findChessboard(const QString &path, int cols, int 
     return convertVectorPoints2fToQVectorQPointF(cvPoints);
 }
 
-void qcam_calib::StereoTools::stereoCalibrate(std::vector<std::vector<cv::Point2f> > leftPoints, std::vector<std::vector<cv::Point2f> > rightPoints,
+std::vector<cv::Mat> StereoTools::stereoCalibrate(std::vector<std::vector<cv::Point2f> > leftPoints, std::vector<std::vector<cv::Point2f> > rightPoints,
         std::vector<std::vector<cv::Point3f> > objectPoints, cv::Size imageSize) {
 
-    std::cout << "SIZE LEFT" << leftPoints.size() << std::endl;
-    std::cout << "SIZE RIGHT" << rightPoints.size() << std::endl;
-    std::cout << "SIZE CHESSBOARD" << objectPoints.size() << std::endl;
-    std::cout << "IMAGE SIZE" << imageSize << std::endl;
+    cv::Mat cameraMatrix[2], distCoeffs[2];
+    cameraMatrix[0] = cv::Mat::eye(3, 3, CV_64F);
+    cameraMatrix[1] = cv::Mat::eye(3, 3, CV_64F);
+    cv::Mat rotation, translation, essential, fundamental;
 
+    double rms = cv::stereoCalibrate(objectPoints, leftPoints, rightPoints, cameraMatrix[0], distCoeffs[0], cameraMatrix[1], distCoeffs[1], imageSize, rotation, translation, essential, fundamental,
+            cv::TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-8), cv::CALIB_RATIONAL_MODEL);
+    std::cout << " RMS ERROR " << rms << std::endl;
+
+    double err = 0;
+    int npoints = 0;
+    std::vector<cv::Vec3f> lines[2];
+    for (int i = 0; i < objectPoints.size(); i++) {
+        int npt = (int) leftPoints[i].size();
+        cv::Mat imgpt[2];
+        for (int k = 0; k < 2; k++) {
+            std::vector<cv::Point2f> tempPoints;
+            k == 0 ? tempPoints = leftPoints[i] : tempPoints = rightPoints[i];
+            imgpt[k] = cv::Mat(tempPoints);
+            cv::undistortPoints(imgpt[k], imgpt[k], cameraMatrix[k], distCoeffs[k], cv::Mat(), cameraMatrix[k]);
+            cv::computeCorrespondEpilines(imgpt[k], k + 1, fundamental, lines[k]);
+        }
+        for (int j = 0; j < npt; j++) {
+            double errij = fabs(leftPoints[i][j].x * lines[1][j][0] + leftPoints[i][j].y * lines[1][j][1] + lines[1][j][2])
+                    + fabs(rightPoints[i][j].x * lines[0][j][0] + rightPoints[i][j].y * lines[0][j][1] + lines[0][j][2]);
+            err += errij;
+        }
+        npoints += npt;
+    }
+
+    std::cout << " AVAREGE ERROR " << err / npoints << std::endl;
+
+    cv::Mat errorMat = (cv::Mat_<float>(1, 2) << rms, err/npoints);
+
+    std::vector<cv::Mat> mats;
+    mats.push_back(cameraMatrix[0]);
+    mats.push_back(distCoeffs[0]);
+    mats.push_back(cameraMatrix[1]);
+    mats.push_back(distCoeffs[1]);
+
+    mats.push_back(errorMat);
+
+    mats.push_back(rotation);
+    mats.push_back(translation);
+    mats.push_back(fundamental);
+    mats.push_back(essential);
+
+//    std::cout << "CAMERA INTRIN LEFt " << cameraMatrix[0] << std::endl;
+//    std::cout << "DIST COEFF LEFT " << distCoeffs[0] << std::endl;
+//
+//    std::cout << "CAMERA INTRIN RIGHT" << cameraMatrix[1] << std::endl;
+//    std::cout << "DIST COEFF RIGHT" << distCoeffs[1] << std::endl;
+//    std::cout << "error  " << errorMat << std::endl;
+
+    return mats;
 }
 
 QVector<QPointF> StereoTools::convertVectorPoints2fToQVectorQPointF(const std::vector<cv::Point2f>&points1) {
@@ -273,4 +357,3 @@ std::vector<cv::Point2f> StereoTools::convertQVectorQPointFToVectorPoints2f(cons
         points2.push_back(cv::Point2f(iter->x(), iter->y()));
     return points2;
 }
-

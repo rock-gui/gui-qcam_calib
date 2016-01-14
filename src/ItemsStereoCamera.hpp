@@ -20,8 +20,12 @@
 
 namespace qcam_calib {
 
-static const QList<QString> INTRINSIC_PARAMETERS_LIST = QList<QString>() << "fx" << "fy" << "cx" << "cy" << "k1" << "k2" << "p1" << "p2" << "projection error" << "pixel error";
+static const QList<QString> INTRINSIC_PARAMETERS_LIST = QList<QString>() << "fx" << "fy" << "cx" << "cy" << "k1" << "k2" << "p1" << "p2"<<"k3"<<"k4"<<"k5"<<"k6";
 static const QList<QString> FUNDAMENTAL_MATRIX_PARAMETERS_LIST = QList<QString>() << "e1" << "e2" << "e3" << "e4" << "e5" << "e6" << "e7" << "e8" << "e9";
+static const QList<QString> ROTATION_MATRIX_PARAMETERS_LIST = QList<QString>() << "r1" << "r2" << "r3" << "r4" << "r5" << "r6" << "r7" << "r8" << "r9";
+static const QList<QString> TRANSLATION_VECTOR_PARAMETERS_LIST = QList<QString>() << "t1" << "t2" << "t3";
+static const QList<QString> ERROR_VALUES_PARAMETERS_LIST = QList<QString>() << "RMS Error" << "Average reprojection error";
+
 
 class StereoCameraParameterItem: public QCamCalibItem {
 public:
@@ -59,6 +63,7 @@ public:
     StereoImageItem* addImages(const QList<QStandardItem*> &stereoImageitems);
     StereoImageItem* getImageItem(const QString &name);
     QStandardItem* getImagesItems() const;
+    StereoCameraParameterItem* getParameter() const;
 
 private:
     int camera_id;
@@ -78,7 +83,9 @@ public:
 
 private:
     int stereo_id;
-    StereoCameraParameterItem* fundamental_matrix;
+    QStandardItem *parameters;
+    StereoCameraParameterItem* error_values;
+
     StereoCameraItem *left_camera;
     StereoCameraItem *right_camera;
 };
@@ -90,7 +97,8 @@ public:
     static QList<QStandardItem*> loadStereoImageAndFindChessboardItem(const QString& path, int cols, int rows);
     static QList<QStandardItem*> loadStereoImageItem(const QString &path);
     static QVector<QPointF> findChessboard(const QString &path, int cols, int rows);
-    static void stereoCalibrate(std::vector<std::vector<cv::Point2f> > leftPoints, std::vector<std::vector<cv::Point2f> > rightPoints, std::vector<std::vector<cv::Point3f> > objectPoints, cv::Size imageSize);
+    static std::vector<cv::Mat> stereoCalibrate(std::vector<std::vector<cv::Point2f> > leftPoints, std::vector<std::vector<cv::Point2f> > rightPoints, std::vector<std::vector<cv::Point3f> > objectPoints,
+            cv::Size imageSize);
 
     static QVector<QPointF> convertVectorPoints2fToQVectorQPointF(const std::vector<cv::Point2f> &points1);
     static std::vector<cv::Point2f> convertQVectorQPointFToVectorPoints2f(const QVector<QPointF> &points1);
