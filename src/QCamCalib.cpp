@@ -71,7 +71,6 @@ QCamCalib::QCamCalib(QWidget *parent) :
 
     // stereo item view menu
     this->stereo_item_menu = new QMenu(this);
-    this->stereo_item_menu->addAction(act_remove);
 
     act = new QAction("Calibre Stereo Camera", this);
     this->stereo_item_menu->addAction(act);
@@ -82,6 +81,8 @@ QCamCalib::QCamCalib(QWidget *parent) :
     this->stereo_item_menu->addAction(act);
     connect(act, SIGNAL(triggered()), this, SLOT(saveStereoItemParameters()));
     this->stereo_item_menu->addAction(act);
+
+    this->stereo_item_menu->addAction(act_remove);
 
     // stereo camera menu
     this->stereo_camera_item_menu = new QMenu(this);
@@ -377,10 +378,6 @@ void QCamCalib::addStereoItem(int camera_id) {
     }
 }
 
-void QCamCalib::saveStereoItemParameters(int camera_id) {
-    std::cout << "saveStereoCameraParameters" << std::endl;
-
-}
 template<typename T>
 T QCamCalib::getItems(int item_id, QString erro_msg) {
     T item = NULL;
@@ -406,7 +403,6 @@ T QCamCalib::getItems(int item_id, QString erro_msg) {
 }
 
 void QCamCalib::loadStereoImages(int camera_id) {
-    std::cout << "loadStereoImages" << std::endl;
 
     QSpinBox *cols = findChild<QSpinBox*>("spinBoxCols");
     QSpinBox *rows = findChild<QSpinBox*>("spinBoxRows");
@@ -435,21 +431,37 @@ void QCamCalib::loadStereoImages(int camera_id) {
         item->addImages(*iterStereoImageitems);
 }
 
-void QCamCalib::calibreStereoItem(int stereo_id) {
-    std::cout << "calibreStereoCamera" << std::endl;
 
+void QCamCalib::saveStereoItemParameters(int stereo_id) {
+    QString erro_msg = "Internal error: Cannot find stereo camera.";
+    StereoItem *item = getItems<StereoItem*>(stereo_id, erro_msg);
+
+    if (!item->isCalibrated()) {
+        calibreStereoItem(stereo_id);
+        if (!item->isCalibrated())
+            return;
+    }
+    QString path = QFileDialog::getSaveFileName(this, "Save Parameter", current_load_path, "config (*.yml *.xml)");
+    if (path.size() != 0)
+        item->saveParameter(path);
+}
+
+void QCamCalib::calibreStereoItem(int stereo_id) {
     QSpinBox *cols = findChild<QSpinBox*>("spinBoxCols");
     QSpinBox *rows = findChild<QSpinBox*>("spinBoxRows");
     QDoubleSpinBox *dx = findChild<QDoubleSpinBox*>("spinBoxDx");
     QDoubleSpinBox *dy = findChild<QDoubleSpinBox*>("spinBoxDy");
     if (!cols || !rows || !dx || !dy)
-        throw std::runtime_error("cannot find chessboard config");
+        throw std::runtime_error("Cannot find chessboard config.");
 
-    QString erro_msg = "Internal error: Can not find camera";
+    QString erro_msg = "Internal error: Cannot find stereo camera.";
     StereoItem* stereo_item = getItems<StereoItem*>(stereo_id, erro_msg);
 
     try {
-        stereo_item->calibrate(cols->value(), rows->value(), dx->value(), dy->value());
+        future_watcher_calibrate->setFuture(QtConcurrent::run(stereo_item, &StereoItem::calibrate, cols->value(), rows->value(), dx->value(), dy->value()));
+        progress_dialog_calibrate->setRange(0, 0);
+        if (QDialog::Accepted != progress_dialog_calibrate->exec() && future_watcher_calibrate->isCanceled())
+            return;
     } catch (std::exception& e) {
         QErrorMessage box;
         box.showMessage(QString(e.what()));

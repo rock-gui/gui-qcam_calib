@@ -17,12 +17,62 @@
 
 using namespace qcam_calib;
 
+cv::Mat fillMatrixParametersbyParametersValues(StereoCameraParameterItem* items, cv::Size sizeMat, QList<QString> parameters) {
+
+    cv::Mat mat = cv::Mat(sizeMat, CV_64FC1);
+    cv::MatIterator_<double> it = mat.begin<double>();
+    int i = 0;
+    while (it != mat.end<double>()) {
+        (*it) = items->getParameter(parameters[i]);
+        ++it;
+        ++i;
+    }
+
+    return mat;
+}
+
+void fillIntrinsecMatrixFromParametersValues(StereoCameraParameterItem* items, cv::Mat &intrinsic, cv::Mat &distCoeff, QList<QString> parameters) {
+
+    cv::Mat k = cv::Mat::zeros(3, 3, CV_64FC1);
+    cv::Mat dist = cv::Mat::zeros(8, 1, CV_64FC1);
+
+    k.at<double>(0, 0) = items->getParameter(parameters[0]);
+    k.at<double>(1, 1) = items->getParameter(parameters[1]);
+    k.at<double>(0, 2) = items->getParameter(parameters[2]);
+    k.at<double>(1, 2) = items->getParameter(parameters[3]);
+
+    dist.at<double>(0) = items->getParameter(parameters[3]);
+    dist.at<double>(1) = items->getParameter(parameters[4]);
+    dist.at<double>(2) = items->getParameter(parameters[5]);
+    dist.at<double>(3) = items->getParameter(parameters[6]);
+    dist.at<double>(4) = items->getParameter(parameters[7]);
+    dist.at<double>(5) = items->getParameter(parameters[8]);
+    dist.at<double>(6) = items->getParameter(parameters[9]);
+    dist.at<double>(7) = items->getParameter(parameters[10]);
+    dist.at<double>(8) = items->getParameter(parameters[11]);
+
+    k.copyTo(intrinsic);
+    dist.copyTo(distCoeff);
+}
+
+void fillParametersValuesbyListParameters(StereoCameraParameterItem* items, cv::Mat mat, QList<QString> parameters) {
+
+    cv::MatIterator_<double> it = mat.begin<double>();
+    int i = 0;
+    while (it != mat.end<double>()) {
+        items->setParameter(parameters[i], (*it));
+        ++it;
+        ++i;
+    }
+}
+
 void fillParametersValuesFromIntrinsecMatrix(StereoCameraParameterItem* items, cv::Mat intrinsic, cv::Mat distMatrix, QList<QString> parameters) {
 
     items->setParameter(parameters[0], intrinsic.at<double>(0, 0)); // fx
     items->setParameter(parameters[1], intrinsic.at<double>(1, 1)); // fy
     items->setParameter(parameters[2], intrinsic.at<double>(0, 2)); // cx
     items->setParameter(parameters[3], intrinsic.at<double>(1, 2)); // cx
+
     items->setParameter(parameters[4], distMatrix.at<double>(0)); // k1
     items->setParameter(parameters[5], distMatrix.at<double>(1)); // k2
     items->setParameter(parameters[6], distMatrix.at<double>(2)); // p1
@@ -73,10 +123,6 @@ double StereoCameraParameterItem::getParameter(const QString& name) const {
     } else
         throw std::runtime_error("Cannot find parameter!");
     return 0;
-}
-
-void StereoCameraParameterItem::save(const QString& path) const {
-
 }
 
 //StereoImageItem
@@ -139,9 +185,6 @@ StereoImageItem* StereoCameraItem::addImages(const QList<QStandardItem*> &stereo
     images->appendRow(stereoImageitems);
 }
 
-StereoImageItem* StereoCameraItem::getImageItem(const QString& name) {
-}
-
 QStandardItem* StereoCameraItem::getImagesItems() const {
     return this->images;
 }
@@ -185,7 +228,6 @@ char* StereoItem::getBaseName() {
 
 void StereoItem::calibrate(int cols, int rows, float dx, float dy) {
 
-    std::cout << "StereoItem::calibrate" << std::endl;
     QStandardItem* leftImages = this->left_camera->getImagesItems();
     QStandardItem* rightImages = this->right_camera->getImagesItems();
 
@@ -229,16 +271,40 @@ void StereoItem::calibrate(int cols, int rows, float dx, float dy) {
     fillParametersValuesFromIntrinsecMatrix(this->left_camera->getParameter(), vecMatrix[0], vecMatrix[1], INTRINSIC_PARAMETERS_LIST);
     fillParametersValuesFromIntrinsecMatrix(this->right_camera->getParameter(), vecMatrix[2], vecMatrix[3], INTRINSIC_PARAMETERS_LIST);
 
-    this->error_values->setParameter(ERROR_VALUES_PARAMETERS_LIST[0], vecMatrix[4].at<float>(0,0));
-    this->error_values->setParameter(ERROR_VALUES_PARAMETERS_LIST[1], vecMatrix[4].at<float>(0,1));
+    this->error_values->setParameter(ERROR_VALUES_PARAMETERS_LIST[0], vecMatrix[4].at<float>(0, 0));
+    this->error_values->setParameter(ERROR_VALUES_PARAMETERS_LIST[1], vecMatrix[4].at<float>(0, 1));
+
+    fillParametersValuesbyListParameters(dynamic_cast<StereoCameraParameterItem*>(this->parameters->child(0, 0)), vecMatrix[5], FUNDAMENTAL_MATRIX_PARAMETERS_LIST);
+    fillParametersValuesbyListParameters(dynamic_cast<StereoCameraParameterItem*>(this->parameters->child(1, 0)), vecMatrix[6], FUNDAMENTAL_MATRIX_PARAMETERS_LIST);
+    fillParametersValuesbyListParameters(dynamic_cast<StereoCameraParameterItem*>(this->parameters->child(2, 0)), vecMatrix[7], ROTATION_MATRIX_PARAMETERS_LIST);
+    fillParametersValuesbyListParameters(dynamic_cast<StereoCameraParameterItem*>(this->parameters->child(3, 0)), vecMatrix[8], TRANSLATION_VECTOR_PARAMETERS_LIST);
 
 }
 
 void StereoItem::saveParameter(const QString& path) const {
+
+    std::vector<cv::Mat> intrisc_mat(2), dist_coeff(2);
+    fillIntrinsecMatrixFromParametersValues(this->left_camera->getParameter(), intrisc_mat[0], dist_coeff[0], INTRINSIC_PARAMETERS_LIST);
+    fillIntrinsecMatrixFromParametersValues(this->right_camera->getParameter(), intrisc_mat[1], dist_coeff[1], INTRINSIC_PARAMETERS_LIST);
+
+    cv::Mat fundamental = fillMatrixParametersbyParametersValues(dynamic_cast<StereoCameraParameterItem*>(parameters->child(0, 0)), cv::Size(3, 3), FUNDAMENTAL_MATRIX_PARAMETERS_LIST);
+    cv::Mat essential = fillMatrixParametersbyParametersValues(dynamic_cast<StereoCameraParameterItem*>(parameters->child(1, 0)), cv::Size(3, 3), FUNDAMENTAL_MATRIX_PARAMETERS_LIST);
+    cv::Mat rotation = fillMatrixParametersbyParametersValues(dynamic_cast<StereoCameraParameterItem*>(parameters->child(2, 0)), cv::Size(3, 3), ROTATION_MATRIX_PARAMETERS_LIST);
+    cv::Mat translation = fillMatrixParametersbyParametersValues(dynamic_cast<StereoCameraParameterItem*>(parameters->child(3, 0)), cv::Size(3, 1), TRANSLATION_VECTOR_PARAMETERS_LIST);
+
+    cv::FileStorage fs(path.toStdString(), cv::FileStorage::WRITE);
+    time_t rawtime;
+    time(&rawtime);
+    fs << "calibrationDate" << asctime(localtime(&rawtime));
+    fs << "leftCameraMatrix" << intrisc_mat[0] << "leftDistCoeffs" << dist_coeff[0];
+    fs << "rightCameraMatrix" << intrisc_mat[1] << "rightDistCoeffs" << dist_coeff[1];
+    fs << "fundamentalMatrix" << fundamental << "essentialMatrix" << essential;
+    fs << "rotationMatrix" << rotation << "translationMatrix" << translation;
+    fs.release();
 }
 
 bool StereoItem::isCalibrated() {
-
+    return error_values->getParameter(ERROR_VALUES_PARAMETERS_LIST[0]) > 0;
 }
 
 QList<QStandardItem*> StereoTools::loadStereoImageAndFindChessboardItem(const QString& path, int cols, int rows) {
@@ -278,21 +344,20 @@ QVector<QPointF> StereoTools::findChessboard(const QString &path, int cols, int 
     cv::cvtColor(cvImage, cvImage, cv::COLOR_BGR2GRAY);
     std::vector<cv::Point2f> cvPoints;
     cv::findChessboardCorners(cvImage, cv::Size(cols, rows), cvPoints);
-//
+
     return convertVectorPoints2fToQVectorQPointF(cvPoints);
 }
 
 std::vector<cv::Mat> StereoTools::stereoCalibrate(std::vector<std::vector<cv::Point2f> > leftPoints, std::vector<std::vector<cv::Point2f> > rightPoints,
         std::vector<std::vector<cv::Point3f> > objectPoints, cv::Size imageSize) {
 
-    cv::Mat cameraMatrix[2], distCoeffs[2];
-    cameraMatrix[0] = cv::Mat::eye(3, 3, CV_64F);
-    cameraMatrix[1] = cv::Mat::eye(3, 3, CV_64F);
+    cv::Mat camera_matrix[2], dist_coeffs[2];
+    camera_matrix[0] = cv::Mat::eye(3, 3, CV_64F);
+    camera_matrix[1] = cv::Mat::eye(3, 3, CV_64F);
     cv::Mat rotation, translation, essential, fundamental;
 
-    double rms = cv::stereoCalibrate(objectPoints, leftPoints, rightPoints, cameraMatrix[0], distCoeffs[0], cameraMatrix[1], distCoeffs[1], imageSize, rotation, translation, essential, fundamental,
-            cv::TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-8), cv::CALIB_RATIONAL_MODEL);
-    std::cout << " RMS ERROR " << rms << std::endl;
+    double rms = cv::stereoCalibrate(objectPoints, leftPoints, rightPoints, camera_matrix[0], dist_coeffs[0], camera_matrix[1], dist_coeffs[1], imageSize, rotation, translation, essential,
+            fundamental, cv::TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-8), cv::CALIB_RATIONAL_MODEL);
 
     double err = 0;
     int npoints = 0;
@@ -304,7 +369,7 @@ std::vector<cv::Mat> StereoTools::stereoCalibrate(std::vector<std::vector<cv::Po
             std::vector<cv::Point2f> tempPoints;
             k == 0 ? tempPoints = leftPoints[i] : tempPoints = rightPoints[i];
             imgpt[k] = cv::Mat(tempPoints);
-            cv::undistortPoints(imgpt[k], imgpt[k], cameraMatrix[k], distCoeffs[k], cv::Mat(), cameraMatrix[k]);
+            cv::undistortPoints(imgpt[k], imgpt[k], camera_matrix[k], dist_coeffs[k], cv::Mat(), camera_matrix[k]);
             cv::computeCorrespondEpilines(imgpt[k], k + 1, fundamental, lines[k]);
         }
         for (int j = 0; j < npt; j++) {
@@ -315,29 +380,19 @@ std::vector<cv::Mat> StereoTools::stereoCalibrate(std::vector<std::vector<cv::Po
         npoints += npt;
     }
 
-    std::cout << " AVAREGE ERROR " << err / npoints << std::endl;
-
-    cv::Mat errorMat = (cv::Mat_<float>(1, 2) << rms, err/npoints);
+    cv::Mat errorMat = (cv::Mat_<float>(1, 2) << rms, err / npoints);
 
     std::vector<cv::Mat> mats;
-    mats.push_back(cameraMatrix[0]);
-    mats.push_back(distCoeffs[0]);
-    mats.push_back(cameraMatrix[1]);
-    mats.push_back(distCoeffs[1]);
+    mats.push_back(camera_matrix[0]);
+    mats.push_back(dist_coeffs[0]);
+    mats.push_back(camera_matrix[1]);
+    mats.push_back(dist_coeffs[1]);
 
     mats.push_back(errorMat);
-
-    mats.push_back(rotation);
-    mats.push_back(translation);
     mats.push_back(fundamental);
     mats.push_back(essential);
-
-//    std::cout << "CAMERA INTRIN LEFt " << cameraMatrix[0] << std::endl;
-//    std::cout << "DIST COEFF LEFT " << distCoeffs[0] << std::endl;
-//
-//    std::cout << "CAMERA INTRIN RIGHT" << cameraMatrix[1] << std::endl;
-//    std::cout << "DIST COEFF RIGHT" << distCoeffs[1] << std::endl;
-//    std::cout << "error  " << errorMat << std::endl;
+    mats.push_back(rotation);
+    mats.push_back(translation);
 
     return mats;
 }
