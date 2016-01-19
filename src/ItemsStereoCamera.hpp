@@ -60,7 +60,7 @@ public:
     StereoCameraItem(int id, const QString &string);
 
     int getId();
-    StereoImageItem* addImages(const QList<QStandardItem*> &stereoImageitems);
+    StereoImageItem* addImages(const QList<QStandardItem*> &stereo_image_items);
     StereoImageItem* getImageItem(const QString &name);
     QStandardItem* getImagesItems() const;
     StereoCameraParameterItem* getParameter() const;
@@ -97,11 +97,11 @@ public:
     static QList<QStandardItem*> loadStereoImageAndFindChessboardItem(const QString& path, int cols, int rows);
     static QList<QStandardItem*> loadStereoImageItem(const QString &path);
     static QVector<QPointF> findChessboard(const QString &path, int cols, int rows);
-    static std::vector<cv::Mat> stereoCalibrate(std::vector<std::vector<cv::Point2f> > leftPoints, std::vector<std::vector<cv::Point2f> > rightPoints, std::vector<std::vector<cv::Point3f> > objectPoints,
-            cv::Size imageSize);
+    static std::vector<cv::Mat> stereoCalibrate(std::vector<std::vector<cv::Point2f> > left_points, std::vector<std::vector<cv::Point2f> > right_points, std::vector<std::vector<cv::Point3f> > object_points,
+            cv::Size image_size);
 
-    static QVector<QPointF> convertVectorPoints2fToQVectorQPointF(const std::vector<cv::Point2f> &points1);
-    static std::vector<cv::Point2f> convertQVectorQPointFToVectorPoints2f(const QVector<QPointF> &points1);
+    static QVector<QPointF> convertVectorPoints2fToQVectorQPointF(const std::vector<cv::Point2f> &points);
+    static std::vector<cv::Point2f> convertQVectorQPointFToVectorPoints2f(const QVector<QPointF> &points);
 };
 
 }
