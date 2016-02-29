@@ -181,4 +181,3 @@ BOOST_AUTO_TEST_CASE(stereoCalibrate_test) {
     BOOST_CHECK_EQUAL((int )(calibrate_avarege_error * precision), (int )(vec_matrix[4].at<float>(1) * precision));
 
 }
-
