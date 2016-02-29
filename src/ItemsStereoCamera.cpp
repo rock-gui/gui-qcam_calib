@@ -345,7 +345,7 @@ QVector<QPointF> StereoTools::findChessboard(const QString &path, int cols, int 
     cv::Mat cv_image(qt_image.height(), qt_image.width(), CV_8UC3, qt_image.bits(), qt_image.bytesPerLine());
     cv::cvtColor(cv_image, cv_image, cv::COLOR_BGR2GRAY);
     std::vector<cv::Point2f> cv_points;
-    cv::findChessboardCorners(cv_image, cv::Size(cols, rows), cv_points, cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE + cv::CALIB_CB_FAST_CHECK);
+    cv::findChessboardCorners(cv_image, cv::Size(cols, rows), cv_points);
 
     return convertVectorPoints2fToQVectorQPointF(cv_points);
 }
