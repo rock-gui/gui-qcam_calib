@@ -7,6 +7,7 @@
 
 #include "ItemsStereoCamera.hpp"
 
+//#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -156,10 +157,13 @@ QImage qcam_calib::StereoImageItem::getImageWithChessboard(int cols, int rows) {
     cv::Mat cv_image(qt_image.height(), qt_image.width(), CV_8UC3, qt_image.bits(), qt_image.bytesPerLine());
 
     std::vector<cv::Point2f> cv_points;
+    QVector<QPointF> qt_points = this->chessboard;
+
     if (this->isChessboardFound()) {
         cv_points = StereoTools::convertQVectorQPointFToVectorPoints2f(this->chessboard);
         cv::drawChessboardCorners(cv_image, cv::Size(cols, rows), cv_points, true);
     }
+
 
     return QImage(cv_image.data, cv_image.cols, cv_image.rows, cv_image.step, QImage::Format_RGB888).copy();
 }
@@ -250,8 +254,10 @@ void StereoItem::calibrate(int cols, int rows, float dx, float dy) {
         StereoImageItem* right_stereo_image = dynamic_cast<StereoImageItem*>(right_images->child(i, 0));
 
         bool both_chessboard_detect = left_stereo_image->isChessboardFound() && right_stereo_image->isChessboardFound();
-        bool equal_number_of_points = left_stereo_image->getChessboardCorners().size() == right_stereo_image->getChessboardCorners().size();
-        if (!both_chessboard_detect || !equal_number_of_points)
+        bool equal_number_of_points_left = left_stereo_image->getChessboardCorners().size() == cols*rows;
+        bool equal_number_of_points_right = right_stereo_image->getChessboardCorners().size() == cols*rows;
+
+        if (!both_chessboard_detect || !equal_number_of_points_left || !equal_number_of_points_right)
             continue;
 
         left_points.push_back(StereoTools::convertQVectorQPointFToVectorPoints2f(left_stereo_image->getChessboardCorners()));
@@ -345,9 +351,13 @@ QVector<QPointF> StereoTools::findChessboard(const QString &path, int cols, int 
     cv::Mat cv_image(qt_image.height(), qt_image.width(), CV_8UC3, qt_image.bits(), qt_image.bytesPerLine());
     cv::cvtColor(cv_image, cv_image, cv::COLOR_BGR2GRAY);
     std::vector<cv::Point2f> cv_points;
-    cv::findChessboardCorners(cv_image, cv::Size(cols, rows), cv_points);
+    bool found_chessboard = cv::findChessboardCorners(cv_image, cv::Size(cols, rows), cv_points);
 
-    return convertVectorPoints2fToQVectorQPointF(cv_points);
+    QVector<QPointF> qt_points;
+    if(found_chessboard)
+      qt_points = convertVectorPoints2fToQVectorQPointF(cv_points);
+
+    return qt_points;
 }
 
 std::vector<cv::Mat> StereoTools::stereoCalibrate(std::vector<std::vector<cv::Point2f> > left_points, std::vector<std::vector<cv::Point2f> > right_points,
