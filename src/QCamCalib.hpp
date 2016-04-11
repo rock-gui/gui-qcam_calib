@@ -5,13 +5,12 @@
 #include <QFuture>
 #include <QFutureWatcher>
 
-namespace qcam_calib
-{
-    class CameraItem;
-    class ImageItem;
-    class ImageView;
+namespace qcam_calib {
+class CameraItem;
+class ImageItem;
+class ImageView;
+class StereoCameraItem;
 }
-
 
 /**
  * \brief Widget for calibrating pinhole cameras
@@ -22,8 +21,7 @@ namespace qcam_calib
  *
  * \author Alexander.Duda@dfki.de
  */
-class QCamCalib : public QWidget
-{
+class QCamCalib: public QWidget {
     Q_OBJECT
 public:
     QCamCalib(QWidget *parent = 0);
@@ -70,7 +68,7 @@ public slots:
      * \param[in] camera_id The id of the camera.
      * \author Alexander.Duda@dfki.de
      */
-    void addImage(const QString &name,const QImage &image,int camera_id=-1);
+    void addImage(const QString &name, const QImage &image, int camera_id = -1);
 
     /**
      * \brief Opens a file dialog and saves the camera parameter as YAML or XML
@@ -101,7 +99,23 @@ public slots:
      * \param[in] name The name of the image
      * \author Alexander.Duda@dfki.de
      */
-    void findChessBoard(int camera_id=-1,const QString &name=QString(""));
+    void findChessBoard(int camera_id = -1, const QString &name = QString(""));
+
+
+    // stereo camrea methods
+    /**
+     * \brief Adds a new stereo camera to the workspace
+     *
+     * \param[in] camera_id The id of the stereo camera. If no id is given the next free id is used starting from 0
+     * \author trocolit2@gmail.com
+     */
+    void addStereoItem(int camera_id = -1);
+
+    void saveStereoItemParameters(int camera_id = -1);
+
+    void calibreStereoItem(int stereo_id = -1);
+
+    void loadStereoImages(int camera_id = -1);
 
 private slots:
     void contextMenuTreeView(const QPoint &point);
@@ -111,7 +125,14 @@ private slots:
 
 private:
     qcam_calib::CameraItem *getCameraItem(int camera_id);
-    qcam_calib::ImageItem *getImageItem(int camera_id,const QString &name);
+    qcam_calib::ImageItem *getImageItem(int camera_id, const QString &name);
+
+    //find camera from stereo item
+    template<typename T>
+    T getItems(int item_id, QString erro_msg);
+
+
+
 
 private:
     // file paths
@@ -125,6 +146,10 @@ private:
     QMenu *tree_view_menu;
     QMenu *image_item_menu;
 
+    QMenu *stereo_item_menu;
+    QMenu *stereo_camera_item_menu;
+    QMenu *stereo_image_item_menu;
+
     // image dispay
     qcam_calib::ImageView *image_view;
 
@@ -135,6 +160,9 @@ private:
     QFutureWatcher<QImage> *future_watcher_images;
     QFutureWatcher<QVector<QPointF> > *future_watcher_chessboard;
     QFutureWatcher<void> *future_watcher_calibrate;
+
+    QProgressDialog *progress_dialog_stereo_images_items;
+    QFutureWatcher<QList<QStandardItem*> > *future_watcher_stereo_images_items;
 };
 
 #endif /* QCAMCALIB_HPP */
