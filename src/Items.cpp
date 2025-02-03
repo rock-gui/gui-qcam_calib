@@ -32,7 +32,7 @@ CameraParameterItem::CameraParameterItem(const QString& string)
     : QCamCalibItem(string)
 {
     setEditable(false);
-    setColumnCount(3);
+    setColumnCount(2);
 
     setParameter("fx", 0);
     setParameter("fy", 0);
@@ -124,7 +124,7 @@ CameraItem::CameraItem(int id, const QString& string)
     images = new QStandardItem("images");
     images->setEditable(false);
     appendRow(images);
-    images->setColumnCount(3);
+    images->setColumnCount(2);
 };
 
 int CameraItem::getId()
@@ -364,7 +364,7 @@ QImage& ImageItem::getUndistortedImage(cv::Mat k, cv::Mat dist)
     cv::Mat out;
     cv::undistort(mat, out, k, dist);
     undistorted_image =
-        QImage(out.data, out.cols, out.rows, out.step, QImage::Format_RGB888);
+        QImage(out.data, out.cols, out.rows, out.step, QImage::Format_RGB888).copy();
     return undistorted_image;
 }
 
@@ -392,6 +392,6 @@ QImage& ImageItem::getReprojectedPointsImage(cv::Mat k,
     cv::Mat out(mat.clone());
     cv::drawChessboardCorners(out, pattern_size, undistortedPoints, true);
     reprojected_image =
-        QImage(out.data, out.cols, out.rows, out.step, QImage::Format_RGB888);
+        QImage(out.data, out.cols, out.rows, out.step, QImage::Format_RGB888).copy();
     return reprojected_image;
 }

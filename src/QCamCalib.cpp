@@ -35,8 +35,8 @@ QCamCalib::QCamCalib(QWidget* parent)
     // tree model
     tree_model = new QStandardItemModel(gui.treeView);
     tree_model->setHorizontalHeaderLabels(
-        (QStringList() << "Cameras" << "Value" << "perViewError"));
-    tree_model->setColumnCount(3);
+        (QStringList() << "Cameras" << "Value"));
+    tree_model->setColumnCount(2);
     gui.treeView->setModel(tree_model);
     connect(gui.treeView,
         SIGNAL(customContextMenuRequested(const QPoint&)),
