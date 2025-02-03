@@ -34,8 +34,8 @@ QCamCalib::QCamCalib(QWidget *parent) :
 
     // tree model
     tree_model = new QStandardItemModel(gui.treeView);
-    tree_model->setHorizontalHeaderLabels((QStringList() << "Cameras" << "Value"));
-    tree_model->setColumnCount(2);
+    tree_model->setHorizontalHeaderLabels((QStringList() << "Cameras" << "Value" << "perViewError"));
+    tree_model->setColumnCount(3);
     gui.treeView->setModel(tree_model);
     connect(gui.treeView,SIGNAL(customContextMenuRequested(const QPoint&)),SLOT(contextMenuTreeView(const QPoint&)));
     connect(gui.treeView,SIGNAL(clicked(const QModelIndex&)),SLOT(clickedTreeView(const QModelIndex&)));
@@ -70,6 +70,12 @@ QCamCalib::QCamCalib(QWidget *parent) :
     image_item_menu->addAction(act_remove);
     act = new QAction("find chessboard",this);
     connect(act,SIGNAL(triggered()),this,SLOT(findChessBoard()));
+    image_item_menu->addAction(act);
+    act = new QAction("undistort image", this);
+    connect(act,SIGNAL(triggered()),this,SLOT(undistortImage()));
+    image_item_menu->addAction(act);
+    act = new QAction("project points", this);
+    connect(act,SIGNAL(triggered()),this,SLOT(reprojectPoints()));
     image_item_menu->addAction(act);
 
     //graphics view
@@ -238,6 +244,37 @@ void QCamCalib::calibrateCamera(int camera_id)
         return;
 }
 
+CameraItem *QCamCalib::getCameraItemFromImageItem(int camera_id)
+{
+    CameraItem *item = NULL;
+    if(camera_id < 0)
+    {
+        QTreeView *tree_view = findChild<QTreeView*>("treeView");
+        if(!tree_view)
+            throw std::runtime_error("Cannot find treeView object");
+        QModelIndex index = tree_view->currentIndex();
+        QModelIndex parent_index = index.parent().parent();
+
+        if(index.isValid()) {
+            item = dynamic_cast<CameraItem*>(tree_model->itemFromIndex(parent_index));
+        }
+    }
+    else
+    {
+        for(int i=0;i<tree_model->rowCount();++i)
+        {
+            item = dynamic_cast<CameraItem*>(tree_model->item(i,0));
+            if(item && item->getId() == camera_id)
+                break;
+            else
+                item = NULL;
+        }
+    }
+    if(item == NULL)
+        throw std::runtime_error("Internal error: cannot find camera");
+    return item;
+}
+
 CameraItem *QCamCalib::getCameraItem(int camera_id)
 {
     CameraItem *item = NULL;
@@ -317,6 +354,44 @@ void QCamCalib::findChessBoard(int camera_id,const QString &name)
         return;
     item->setChessboard(chessboards.results().front(),cols->value(),rows->value());
     displayImage(item->getImage());
+}
+
+void QCamCalib::undistortImage(int camera_id, const QString &name)
+{
+    CameraItem *item = getCameraItemFromImageItem(camera_id);
+    if(!item->isCalibrated())
+    {
+        throw std::runtime_error("Cannot undistort uncalibrated camera.");
+    }
+
+    cv::Mat k = item->getCameraMatrix();
+    cv::Mat dist = item->getDistCoeffs();
+    ImageItem *image_item = getImageItem(camera_id, name);
+    displayImage(
+        image_item->getUndistortedImage(k, dist)
+    );
+}
+
+void QCamCalib::reprojectPoints(int camera_id, const QString &name)
+{
+    QSpinBox *cols = findChild<QSpinBox*>("spinBoxCols");
+    QSpinBox *rows = findChild<QSpinBox*>("spinBoxRows");
+    if(!cols || !rows)
+        throw std::runtime_error("cannot find pattern size");
+
+    cv::Size pattern_size(cols->value(), rows->value());
+    CameraItem *item = getCameraItemFromImageItem(camera_id);
+    if(!item->isCalibrated())
+    {
+        throw std::runtime_error("Cannot undistort uncalibrated camera.");
+    }
+
+    cv::Mat k = item->getCameraMatrix();
+    cv::Mat dist = item->getDistCoeffs();
+    ImageItem *image_item = getImageItem(camera_id, name);
+    displayImage(
+        image_item->getReprojectedPointsImage(k, dist, pattern_size)
+    );
 }
 
 void QCamCalib::removeCurrentItem()

@@ -32,7 +32,7 @@ CameraParameterItem::CameraParameterItem(const QString &string):
     QCamCalibItem(string)
 {
     setEditable(false);
-    setColumnCount(2);
+    setColumnCount(3);
 
     setParameter("fx",0);
     setParameter("fy",0);
@@ -45,6 +45,15 @@ CameraParameterItem::CameraParameterItem(const QString &string):
     setParameter("projection error",0);
     setParameter("pixel error",0);
 };
+
+// ImageParameterItem::ImageParameterItem(const QString &string):
+//     QCamCalibItem(string)
+// {
+//     setEditable(false);
+//     setColumnCount(3);
+
+
+// }
 
 
 void CameraParameterItem::setParameter(const QString &name,double val)
@@ -119,6 +128,7 @@ CameraItem::CameraItem(int id, const QString &string):
     images = new QStandardItem("images");
     images->setEditable(false);
     appendRow(images);
+    images->setColumnCount(3);
 };
 
 int CameraItem::getId()
@@ -134,6 +144,26 @@ bool CameraItem::isCalibrated()
 void CameraItem::saveParameter(const QString &path)const
 {
     camera_parameter->save(path);
+}
+
+cv::Mat CameraItem::getCameraMatrix()
+{
+    return m_k;
+}
+
+cv::Mat CameraItem::getDistCoeffs()
+{
+    return m_dist;
+}
+
+std::vector<cv::Mat> CameraItem::getRotationVector()
+{
+    return m_rvecs;
+}
+
+std::vector<cv::Mat> CameraItem::getTranslationVector()
+{
+    return m_tvecs;
 }
 
 int CameraItem::countChessboards()
@@ -181,9 +211,14 @@ void CameraItem::calibrate(int cols,int rows,float dx,float dy)
     cv::Mat dist(4,1,CV_64FC1);
     std::vector<cv::Mat> rvecs;
     std::vector<cv::Mat> tvecs;
-    double error = cv::calibrateCamera(object_points,image_points,
-                                       image_size,k,dist,rvecs,tvecs,0);
-                                       //cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 50, DBL_EPSILON));
+    cv::Mat stdDeviationsIntrisics;
+    cv::Mat stdDeviationsExtrisics;
+    std::vector<double> perViewErrors;
+
+    double error = cv::calibrateCamera(
+        object_points,image_points,image_size,k,dist,rvecs,tvecs, stdDeviationsIntrisics, stdDeviationsExtrisics, perViewErrors,0
+    );
+    //cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 50, DBL_EPSILON));
 
     //store parameters
     camera_parameter->setParameter("fx",k.at<double>(0,0));
@@ -196,6 +231,31 @@ void CameraItem::calibrate(int cols,int rows,float dx,float dy)
     camera_parameter->setParameter("p2",dist.at<double>(3));
     camera_parameter->setParameter("projection error",error);
     camera_parameter->setParameter("pixel error",sqrt(error/points3f.size()));
+
+    size_t errorSize = perViewErrors.size();
+    size_t errorCounter = 0;
+
+    for(int row=0;row < images->rowCount(); ++row)
+    {
+        ImageItem *item = dynamic_cast<ImageItem*>(images->child(row,0));
+        auto chessboard = item->getChessboardCorners();
+        if(item->parent())
+        {
+            QStandardItem *item_cell = images->child(row,1);
+            if(item_cell)
+            {
+                if(!chessboard.empty() && errorCounter <= errorSize) {
+                    item_cell->setText(QString::number(perViewErrors[errorCounter]));
+                    errorCounter++;
+                }
+                else
+                    item_cell->setText("unavailable");
+            }
+        }
+    }
+
+    m_k = k.clone();
+    m_dist = dist.clone();
 }
 
 ImageItem* CameraItem::getImageItem(const QString &name)
@@ -298,4 +358,33 @@ QImage &ImageItem::getRawImage()
     return raw_image;
 }
 
+QImage &ImageItem::getUndistortedImage(cv::Mat k, cv::Mat dist)
+{
+    QImage img = raw_image.convertToFormat(QImage::Format_RGB888);
+    cv::Mat mat(img.height(), img.width(), CV_8UC3, img.bits(), img.bytesPerLine());
+    cv::Mat out;
+    cv::undistort(mat, out, k, dist);
+    undistorted_image = QImage(out.data, out.cols, out.rows, out.step,QImage::Format_RGB888);
+    return undistorted_image;
+}
 
+QImage &ImageItem::getReprojectedPointsImage(cv::Mat k, cv::Mat dist, cv::Size pattern_size)
+{
+    QImage img = raw_image.convertToFormat(QImage::Format_RGB888);
+    cv::Mat mat(img.height(), img.width(), CV_8UC3, img.bits(), img.bytesPerLine());
+    cv::Mat gray;
+    cv::cvtColor(mat,gray,cv::COLOR_RGB2GRAY);
+    std::vector<cv::Point2f> objectPoints;
+    bool found = cv::findChessboardCorners(gray,pattern_size,objectPoints,cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE + cv::CALIB_CB_FAST_CHECK);
+
+    if (!found) {
+        return raw_image;
+    }
+
+    std::vector<cv::Point2f> undistortedPoints;
+    cv::undistortPoints(objectPoints, undistortedPoints, k, dist, cv::noArray(), k);
+    cv::Mat out(mat.clone());
+    cv::drawChessboardCorners(out, pattern_size, undistortedPoints, true);
+    reprojected_image = QImage(out.data, out.cols, out.rows, out.step, QImage::Format_RGB888);
+    return reprojected_image;
+}

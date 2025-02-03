@@ -103,6 +103,10 @@ public slots:
      */
     void findChessBoard(int camera_id=-1,const QString &name=QString(""));
 
+    void undistortImage(int camera_id=-1, const QString &name=QString(""));
+
+    void reprojectPoints(int camera_id=-1, const QString &name=QString(""));
+
 private slots:
     void contextMenuTreeView(const QPoint &point);
     void clickedTreeView(const QModelIndex& index);
@@ -112,6 +116,7 @@ private slots:
 private:
     qcam_calib::CameraItem *getCameraItem(int camera_id);
     qcam_calib::ImageItem *getImageItem(int camera_id,const QString &name);
+    qcam_calib::CameraItem *getCameraItemFromImageItem(int camera_id);
 
 private:
     // file paths
