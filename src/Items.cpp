@@ -242,7 +242,7 @@ void CameraItem::calibrate(int cols, int rows, float dx, float dy)
             QStandardItem* item_cell = images->child(row, 1);
             if (item_cell) {
                 if (!chessboard.empty() && errorCounter <= errorSize) {
-                    item_cell->setText(QString::number(perViewErrors[errorCounter]));
+                    item_cell->setText(QString::number(perViewErrors[errorCounter], 'f', 2));
                     errorCounter++;
                 }
                 else
