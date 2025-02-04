@@ -173,7 +173,7 @@ int CameraItem::countChessboards()
     return count;
 }
 
-void CameraItem::calibrate(int cols, int rows, float dx, float dy)
+void CameraItem::calibrate(int cols, int rows, float dx, float dy, int iterations)
 {
 
     std::vector<std::vector<cv::Point3f>> object_points;
@@ -217,8 +217,10 @@ void CameraItem::calibrate(int cols, int rows, float dx, float dy)
         stdDeviationsIntrisics,
         stdDeviationsExtrisics,
         perViewErrors,
-        0);
-    // cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 50, DBL_EPSILON));
+        0,
+        cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+            iterations,
+            DBL_EPSILON));
 
     // store parameters
     camera_parameter->setParameter("fx", k.at<double>(0, 0));
@@ -242,7 +244,8 @@ void CameraItem::calibrate(int cols, int rows, float dx, float dy)
             QStandardItem* item_cell = images->child(row, 1);
             if (item_cell) {
                 if (!chessboard.empty() && errorCounter <= errorSize) {
-                    item_cell->setText(QString::number(perViewErrors[errorCounter], 'f', 2));
+                    item_cell->setText(
+                        QString::number(perViewErrors[errorCounter], 'f', 2));
                     errorCounter++;
                 }
                 else

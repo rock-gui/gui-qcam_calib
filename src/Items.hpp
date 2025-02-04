@@ -59,7 +59,7 @@ namespace qcam_calib {
         std::vector<cv::Mat> getTranslationVector();
         ImageItem* addImage(const QString& name, const QImage& image);
         ImageItem* getImageItem(const QString& name);
-        void calibrate(int cols, int rows, float dx, float dy);
+        void calibrate(int cols, int rows, float dx, float dy, int iterations);
         void saveParameter(const QString& path) const;
         bool isCalibrated();
         int countChessboards();

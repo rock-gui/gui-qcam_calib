@@ -275,6 +275,10 @@ void QCamCalib::calibrateCamera(int camera_id)
     QDoubleSpinBox* dy = findChild<QDoubleSpinBox*>("spinBoxDy");
     if (!cols || !rows || !dx || !dy)
         throw std::runtime_error("cannot find chessboard config");
+    
+    QSpinBox* iterations = findChild<QSpinBox*>("spinBoxIterations");
+    if (!iterations)
+        throw std::runtime_error("cannot find calibration iteration config");
 
     // select images
     CameraItem* item = getCameraItem(camera_id);
@@ -290,7 +294,8 @@ void QCamCalib::calibrateCamera(int camera_id)
         cols->value(),
         rows->value(),
         dx->value(),
-        dy->value()));
+        dy->value(),
+        iterations->value()));
     progress_dialog_calibrate->setRange(0, 0);
     if (QDialog::Accepted != progress_dialog_calibrate->exec() &&
         future_watcher_calibrate->isCanceled())
