@@ -44,6 +44,8 @@ CameraParameterItem::CameraParameterItem(const QString& string)
     setParameter("p2", 0);
     setParameter("projection error", 0);
     setParameter("pixel error", 0);
+    setParameter("horizontal fov", 0);
+    setParameter("vertical fov", 0);
     // By using the ValidROI from the image with blackbars, one can calculate the
     // percentage of the image that is cropped to maintain the aspect ratio after
     // the undistort.
@@ -241,9 +243,12 @@ void CameraItem::calibrate(int cols, int rows, float dx, float dy, int iteration
             iterations,
             DBL_EPSILON));
 
+    double fx = k.at<double>(0, 0);
+    double fy = k.at<double>(1, 1);
+
     // store parameters
-    camera_parameter->setParameter("fx", k.at<double>(0, 0));
-    camera_parameter->setParameter("fy", k.at<double>(1, 1));
+    camera_parameter->setParameter("fx", fx);
+    camera_parameter->setParameter("fy", fy);
     camera_parameter->setParameter("cx", k.at<double>(0, 2));
     camera_parameter->setParameter("cy", k.at<double>(1, 2));
     camera_parameter->setParameter("k1", dist.at<double>(0));
@@ -273,6 +278,12 @@ void CameraItem::calibrate(int cols, int rows, float dx, float dy, int iteration
         }
     }
 
+    double fov_x = calculateFOV(fx, image_size.width);
+    double fov_y = calculateFOV(fy, image_size.height);
+
+    camera_parameter->setParameter("horizontal fov", fov_x);
+    camera_parameter->setParameter("vertical fov", fov_y);
+
     cv::Rect valid_ROI;
     cv::Mat full_camera_matrix =
         getOptimalNewCameraMatrix(k, dist, image_size, 1, image_size, &valid_ROI);
@@ -290,6 +301,11 @@ void CameraItem::calibrate(int cols, int rows, float dx, float dy, int iteration
     m_full_camera_matrix = full_camera_matrix.clone();
     m_valid_ROI = valid_ROI;
     m_preserved_ROI = preserved_aspect_ratio_ROI;
+}
+
+double CameraItem::calculateFOV(double focal_length, double image_size)
+{
+    return 2 * atan(image_size / (2 * focal_length)) * (180.0 / CV_PI);
 }
 
 cv::Rect CameraItem::adjustToDesiredAspectRatio(const cv::Rect& original_rect,

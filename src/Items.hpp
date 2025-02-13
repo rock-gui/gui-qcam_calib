@@ -66,6 +66,7 @@ namespace qcam_calib {
         cv::Rect getPreservedROI();
         cv::Rect adjustToDesiredAspectRatio(const cv::Rect& original_rect,
             const float target_aspect_ratio);
+        double calculateFOV(double focal_length, double image_size);
         std::vector<cv::Mat> getRotationVector();
         std::vector<cv::Mat> getTranslationVector();
         ImageItem* addImage(const QString& name, const QImage& image);
