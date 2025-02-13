@@ -34,8 +34,7 @@ QCamCalib::QCamCalib(QWidget* parent)
 
     // tree model
     tree_model = new QStandardItemModel(gui.treeView);
-    tree_model->setHorizontalHeaderLabels(
-        (QStringList() << "Cameras" << "Value"));
+    tree_model->setHorizontalHeaderLabels((QStringList() << "Cameras" << "Value"));
     tree_model->setColumnCount(2);
     gui.treeView->setModel(tree_model);
     connect(gui.treeView,
@@ -435,8 +434,15 @@ void QCamCalib::undistortImageWithBlackBars(int camera_id, const QString& name)
 
     cv::Mat k = item->getCameraMatrix();
     cv::Mat dist = item->getDistCoeffs();
+    cv::Mat full_camera_matrix = item->getFullCameraMatrix();
+    cv::Rect valid_ROI = item->getValidROI();
+    cv::Rect preserved_ROI = item->getPreservedROI();
     ImageItem* image_item = getImageItem(camera_id, name);
-    displayImage(image_item->getUndistortedImageWithBlackBars(k, dist));
+    displayImage(image_item->getUndistortedImageWithBlackBars(k,
+        dist,
+        full_camera_matrix,
+        valid_ROI,
+        preserved_ROI));
 }
 
 void QCamCalib::reprojectPoints(int camera_id, const QString& name)

@@ -35,11 +35,13 @@ namespace qcam_calib {
         QImage& getImage();
         QImage& getRawImage();
         QImage& getUndistortedImage(cv::Mat k, cv::Mat dist);
-        QImage& getUndistortedImageWithBlackBars(cv::Mat k, cv::Mat dist);
+        QImage& getUndistortedImageWithBlackBars(cv::Mat k,
+            cv::Mat dist,
+            cv::Mat full_camera_matrix,
+            cv::Rect valid_ROI,
+            cv::Rect preserved_aspect_ratio_ROI);
         QImage& getReprojectedPointsImage(cv::Mat k, cv::Mat dist, cv::Size pattern_size);
 
-        cv::Rect adjustToDesiredAspectRatio(const cv::Rect& original_rect,
-            const float target_aspect_ratio);
         const QVector<QPointF>& getChessboardCorners() const;
         bool findChessboard(int cols, int rows);
         void setChessboard(const QVector<QPointF>& chessboard, int cols, int rows);
@@ -48,7 +50,7 @@ namespace qcam_calib {
         QImage raw_image;
         QImage image;                             // image with chessboard overlay
         QImage undistorted_image;                 // undistorted image
-        QImage undistorted_image_with_black_bars; // undistorted image with black pixels
+        QImage undistorted_image_with_black_bars; // undistorted image with black bars
         QImage reprojected_image;                 // reprojected image
         QVector<QPointF> chessboard;
     };
@@ -59,6 +61,11 @@ namespace qcam_calib {
         int getId();
         cv::Mat getCameraMatrix();
         cv::Mat getDistCoeffs();
+        cv::Mat getFullCameraMatrix();
+        cv::Rect getValidROI();
+        cv::Rect getPreservedROI();
+        cv::Rect adjustToDesiredAspectRatio(const cv::Rect& original_rect,
+            const float target_aspect_ratio);
         std::vector<cv::Mat> getRotationVector();
         std::vector<cv::Mat> getTranslationVector();
         ImageItem* addImage(const QString& name, const QImage& image);
@@ -74,6 +81,9 @@ namespace qcam_calib {
         QStandardItem* images;
         cv::Mat m_dist;
         cv::Mat m_k;
+        cv::Mat m_full_camera_matrix;
+        cv::Rect m_valid_ROI;
+        cv::Rect m_preserved_ROI;
         std::vector<cv::Mat> m_rvecs;
         std::vector<cv::Mat> m_tvecs;
     };
