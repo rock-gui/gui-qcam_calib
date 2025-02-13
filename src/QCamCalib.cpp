@@ -82,6 +82,9 @@ QCamCalib::QCamCalib(QWidget* parent)
     act = new QAction("undistort image", this);
     connect(act, SIGNAL(triggered()), this, SLOT(undistortImage()));
     image_item_menu->addAction(act);
+    act = new QAction("undistort image with black bars", this);
+    connect(act, SIGNAL(triggered()), this, SLOT(undistortImageWithBlackBars()));
+    image_item_menu->addAction(act);
     act = new QAction("project points", this);
     connect(act, SIGNAL(triggered()), this, SLOT(reprojectPoints()));
     image_item_menu->addAction(act);
@@ -421,6 +424,19 @@ void QCamCalib::undistortImage(int camera_id, const QString& name)
     cv::Mat dist = item->getDistCoeffs();
     ImageItem* image_item = getImageItem(camera_id, name);
     displayImage(image_item->getUndistortedImage(k, dist));
+}
+
+void QCamCalib::undistortImageWithBlackBars(int camera_id, const QString& name)
+{
+    CameraItem* item = getCameraItemFromImageItem(camera_id);
+    if (!item->isCalibrated()) {
+        throw std::runtime_error("Cannot undistort uncalibrated camera.");
+    }
+
+    cv::Mat k = item->getCameraMatrix();
+    cv::Mat dist = item->getDistCoeffs();
+    ImageItem* image_item = getImageItem(camera_id, name);
+    displayImage(image_item->getUndistortedImageWithBlackBars(k, dist));
 }
 
 void QCamCalib::reprojectPoints(int camera_id, const QString& name)

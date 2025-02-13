@@ -121,6 +121,22 @@ public slots:
     void undistortImage(int camera_id = -1, const QString& name = QString(""));
 
     /**
+     * \brief Undistorts the image but keeps all the pixels (black bars),
+     * also draws 2 boxes corresponding to the max aspect ratio without black pixels
+     * drawn in green and the original image aspect ratio without black pixels drawn in
+     * blue
+     *
+     * \note if no camera id is given it is asumed that an image is selected in the
+     * TreeView
+     *
+     * \param[in] camera_id The id of the camera
+     * \param[in] name The name of the image
+     * \author Higormeloo@gmail.com
+     */
+    void undistortImageWithBlackBars(int camera_id = -1,
+        const QString& name = QString(""));
+
+    /**
      * \brief Reproject points in an image
      *
      * \note if no camera id is given it is assumed that an image is selected in the

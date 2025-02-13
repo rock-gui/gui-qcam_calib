@@ -35,17 +35,21 @@ namespace qcam_calib {
         QImage& getImage();
         QImage& getRawImage();
         QImage& getUndistortedImage(cv::Mat k, cv::Mat dist);
+        QImage& getUndistortedImageWithBlackBars(cv::Mat k, cv::Mat dist);
         QImage& getReprojectedPointsImage(cv::Mat k, cv::Mat dist, cv::Size pattern_size);
-        const QVector<QPointF>& getChessboardCorners() const;
 
+        cv::Rect adjustToDesiredAspectRatio(const cv::Rect& original_rect,
+            const float target_aspect_ratio);
+        const QVector<QPointF>& getChessboardCorners() const;
         bool findChessboard(int cols, int rows);
         void setChessboard(const QVector<QPointF>& chessboard, int cols, int rows);
 
     private:
         QImage raw_image;
-        QImage image;             // image with chessboard overlay
-        QImage undistorted_image; // undistorted image
-        QImage reprojected_image; // reprojected image
+        QImage image;                             // image with chessboard overlay
+        QImage undistorted_image;                 // undistorted image
+        QImage undistorted_image_with_black_bars; // undistorted image with black pixels
+        QImage reprojected_image;                 // reprojected image
         QVector<QPointF> chessboard;
     };
 

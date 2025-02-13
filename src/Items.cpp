@@ -371,6 +371,63 @@ QImage& ImageItem::getUndistortedImage(cv::Mat k, cv::Mat dist)
     return undistorted_image;
 }
 
+QImage& ImageItem::getUndistortedImageWithBlackBars(cv::Mat k, cv::Mat dist)
+{
+    QImage img = raw_image.convertToFormat(QImage::Format_RGB888);
+    cv::Mat mat(img.height(), img.width(), CV_8UC3, img.bits(), img.bytesPerLine());
+    cv::Mat out;
+    // Creating a camera matrix with alpha = 1 which will keep the blackbars on the image
+    cv::Rect rectangle;
+    cv::Mat newCameraMatrix =
+        getOptimalNewCameraMatrix(k, dist, mat.size(), 1, mat.size(), &rectangle);
+    cv::undistort(mat, out, k, dist, newCameraMatrix);
+    cv::Scalar green(0, 255, 0);
+    cv::rectangle(out, cv::Point(rectangle.x, rectangle.y), rectangle.br(), green, 2);
+    float desired_aspect_ratio =
+        static_cast<float>(img.width()) / static_cast<float>(img.height());
+    cv::Rect preserved_aspect_ratio =
+        adjustToDesiredAspectRatio(rectangle, desired_aspect_ratio);
+    cv::Scalar blue(0, 0, 255);
+    cv::rectangle(out,
+        cv::Point(preserved_aspect_ratio.x, preserved_aspect_ratio.y),
+        preserved_aspect_ratio.br(),
+        blue,
+        2);
+    undistorted_image_with_black_bars =
+        QImage(out.data, out.cols, out.rows, out.step, QImage::Format_RGB888).copy();
+    return undistorted_image_with_black_bars;
+}
+
+cv::Rect ImageItem::adjustToDesiredAspectRatio(const cv::Rect& original_rect,
+    const float target_aspect_ratio)
+{
+    float current_aspect_ratio =
+        static_cast<float>(original_rect.width) / original_rect.height;
+
+    cv::Rect adjusted_rect;
+
+    if (current_aspect_ratio > target_aspect_ratio) {
+        // Original is wider than target aspect ratio → adjust width to match height
+        adjusted_rect.width =
+            static_cast<int>(std::round(original_rect.height * target_aspect_ratio));
+        adjusted_rect.height = original_rect.height;
+        adjusted_rect.x =
+            original_rect.x + (original_rect.width - adjusted_rect.width) / 2;
+        adjusted_rect.y = original_rect.y;
+    }
+    else {
+        // Original is taller than target aspect ratio → adjust height to match width
+        adjusted_rect.height =
+            static_cast<int>(std::round(original_rect.width / target_aspect_ratio));
+        adjusted_rect.width = original_rect.width;
+        adjusted_rect.x = original_rect.x;
+        adjusted_rect.y =
+            original_rect.y + (original_rect.height - adjusted_rect.height) / 2;
+    }
+
+    return adjusted_rect;
+}
+
 QImage& ImageItem::getReprojectedPointsImage(cv::Mat k,
     cv::Mat dist,
     cv::Size pattern_size)
