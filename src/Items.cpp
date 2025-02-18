@@ -46,10 +46,6 @@ CameraParameterItem::CameraParameterItem(const QString& string)
     setParameter("pixel error", 0);
     setParameter("horizontal fov", 0);
     setParameter("vertical fov", 0);
-    // By using the ValidROI from the image with blackbars, one can calculate the
-    // percentage of the image that is cropped to maintain the aspect ratio after
-    // the undistort.
-    setParameter("Horizontal FOV percentage after undistort", 0);
 };
 
 void CameraParameterItem::setParameter(const QString& name, double val)
@@ -291,10 +287,6 @@ void CameraItem::calibrate(int cols, int rows, float dx, float dy, int iteration
         static_cast<float>(image_size.width) / static_cast<float>(image_size.height);
     cv::Rect preserved_aspect_ratio_ROI =
         adjustToDesiredAspectRatio(valid_ROI, desired_aspect_ratio);
-    float percentage_fov = static_cast<float>(preserved_aspect_ratio_ROI.width) /
-                           static_cast<float>(valid_ROI.width);
-    camera_parameter->setParameter("Horizontal FOV percentage after undistort",
-        percentage_fov);
 
     m_k = k.clone();
     m_dist = dist.clone();
