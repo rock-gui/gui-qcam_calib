@@ -305,7 +305,7 @@ void CameraItem::calibrate(int cols, int rows, float dx, float dy, int iteration
 
 double CameraItem::calculateFOV(double focal_length, double image_size)
 {
-    return 2 * atan(image_size / (2 * focal_length)) * (180.0 / CV_PI);
+    return 2 * atan2(image_size / 2 / focal_length, 1) * (180.0 / CV_PI);
 }
 
 cv::Rect CameraItem::adjustToDesiredAspectRatio(const cv::Rect& original_rect,
